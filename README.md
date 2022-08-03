@@ -6,7 +6,7 @@ The pipeline was written by the [Cancer Bioinformatics][url_cb] group at [King's
 
 ## Pipeline summary 
 
-1. Trained germinal centre and sinus segmentationPyTorch models (http://www.usadellab.org/cms/?
+1. Trained germinal centre and sinus segmentationPyTorch models
 2. Inference pipeline: generates entire WSI segmentation mask
 3. Quantification pipeline:
 
