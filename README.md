@@ -1,6 +1,6 @@
 # smuLymphNet
 
-Deep learning framework to detect and quantify immune morphometric features in lymph nodes using multiscale fully convolutional networks. 
+Deep learning models to detect and quantify immune morphometric features in lymph nodes using multiscale fully convolutional networks. 
 
 ## Pipeline summary 
 
