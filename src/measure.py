@@ -200,12 +200,12 @@ class Germinals():
         return plot
 
 
-class Sinuses():
+class sinuses():
     def __init__(self, ln, mask, label):
         self.ln=ln
         mask[mask!=label]=0
-        self.sinusMask=mask
-        self.annMask=mask
+        self.sinus_mask=mask
+        self.ann_mask=mask
         self.label=label
         self._sinuses = None
         self._num=None
@@ -213,54 +213,33 @@ class Sinuses():
 
 
     @property
-    def totalArea(self):
-        return sum(self._areas)
-
-
-    @property
-    def totalArea2(self):
+    def total_area(self):
         return (len(self.sinusMask[self.sinusMask==self.label])
                    *self.ln.slide.wScale*self.ln.slide.hScale)
 
 
-    def detectSinuses(self):
+    def detect_sinuses(self):
 
-        if len(self.sinusMask.shape)==3:
-            self.annMask=cv2.cvtColor(self.annMask, cv2.COLOR_BGR2GRAY)
-
-        edges=cv2.Canny(self.annMask,30,200)
-
-        #blur=cv2.bilateralFilter(np.bitwise_not(self.sinusMask),9,100,100)
-        #_,thresh=cv2.threshold(blur,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-        #contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
-        #contours = list(filter(lambda x: cv2.contourArea(x) > 100, contours))
+        if len(self.sinus_mask.shape)==3:
+            self.ann_mask=cv2.cvtColor(self.ann_mask, cv2.COLOR_BGR2GRAY)
+        edges=cv2.Canny(self.ann_mask,30,200)
         contours, _ = cv2.findContours(edges, cv2.RETR_LIST,
                                        cv2.CHAIN_APPROX_NONE)
 
         contours = list(filter(lambda x: cv2.contourArea(x) > 0, contours))
         self._sinuses=contours
         self._num=len(self._sinuses)
-        self.annMask=edges
-
+        self.ann_mask=edges
         return self._num
 
 
-    def measureAreas(self):
-        self._areas=[cv2.contourArea(c) for c in self._sinuses]
-        return self._areas
-
-
-    def visualiseSinus(self, color=(0,0,255)):
-
-        plot=self.annMask
-        #plot = np.bitwise_not(plot)
-
-        if self._sinuses != None and len(self.annMask.shape)==2:
-
-            self.annMask=cv2.cvtColor(self.annMask,cv2.COLOR_GRAY2BGR)
-            plot=cv2.drawContours(self.annMask, self._sinuses, -1, color,1)
-
+    def visualise_sinus(self, color=(0,0,255)):
+        plot=self.ann_mask
+        if self._sinuses != None and len(self.ann_mask.shape)==2:
+            self.ann_mask=cv2.cvtColor(self.ann_mask,cv2.COLOR_GRAY2BGR)
+            plot=cv2.drawContours(self.ann_mask, self._sinuses, -1, color,1)
         return plot
+
 
 
 class LymphNode():
