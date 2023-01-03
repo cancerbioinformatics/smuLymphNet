@@ -9,9 +9,6 @@ import openslide
 import pandas as pd
 
 import measure as me
-#from src.utilities.utils import getFiles
-
-
 
 #mask[:,:,0][mask[:,:,0]==128]=0
 #mask[:,:,1][mask[:,:,1]==255]=0
@@ -21,81 +18,54 @@ import measure as me
 #mask[:,:,0][mask[:,:,1]!=0]=128
 
 
+node_stats={
+        'name': [],
+        'ln_idx': [],
+        'ln_area': [],
+        'germ_number': [],
+        'avg_germ_width': [],
+        'avg_germ_height': [],
+        'total_germ_area': [],
+        'avg_germ_area': [],
+        'avg_germ_shape': [],
+        'max_germ_area': [],
+        'min_germ_area': [],
+        'germ_distance_to_centre': [],
+        'germ_distance_to_boundary': [],
+        'total_sinus_area': []
+    }
 
+def ln_quantification(mask,wsi)
 
-def getFiles(filesPath, ext):
-    filesLst=[]
-    for path, subdirs, files in os.walk(filesPath):
-        for name in files:
-            if name.endswith(ext):
-                filesLst.append(os.path.join(path,name))
-    return filesLst
-
-
-def ln_quantification(mask,slide)
-
-    dims=slide.dimensions
-    slide_thumb=np.array(wsi.get_thumbnail(size=wsi.level_dimensions[6]))
+    dims=wsi.dimensions
+    wsi_thumb=np.array(wsi.get_thumbnail(size=wsi.level_dimensions[6]))
     mask=cv2.resize(mask,wsi.level_dimensions[6])
 
     slide = me.Slide(image,mask)
     num = slide.locate_nodes(255,128)
     print('number of ln: {}'.format(num))
-
+     
     for i, ln in enumerate(slide._lymphNodes):
+        node_stats['ln_area'].append(ln.area*1e6)
+        node_stats['germ_number'].append(ln.germinals.detect_germinals())
+        num_sinuses=ln.sinuses.detect_sinuses()
+        ln.germinals.measure_sizes()
+        ln.germinals.measure_areas()
 
-        #mask=cv2.drawContours(ln.image,ln.contour,-1,(0,0,255),3)
-        #lnAreas.append(ln.area*1e6)
-        #cv2.imwrite(os.path.join(savePath,name+str(i)+'_ln.png'),mask)
-        num_germs=ln.germinals.detectGerminals()
-        num_sinuses=ln.sinuses.detectSinuses()
-        ln.germinals.measureSizes()
-        ln.germinals.measureAreas()
-
-        sinus_mask=ln.sinuses.sinusMask
-        germinal_mask=ln.germinals.mask
-        binary_mask=np.zeros((mask.shape))
-        binary_mask=cv2.fillPoly(binary_mask,pts=[ln.contour],color=(255,255,255))
-
-        germinal_mask = germinal_mask[:,:,None]*np.ones(3, dtype=int)[None,None,:]
-        sinus_mask = sinus_mask[:,:,None]*np.ones(3, dtype=int)[None,None,:]
-
-        binary_mask[germinal_mask==255]=0
-        germinal_mask[:,:,0]=0
-        germinal_mask[:,:,2]=0
-
-        sinus_mask[sinus_mask==128]=255
-        binary_mask[sinus_mask==255]=0
-        sinus_mask[:,:,0]=0
-        sinus_mask[:,:,1]=0
-
-        binary_mask[:,:,1]=0
-        binary_mask[:,:,2]=0
-
-        binary_mask=binary_mask+germinal_mask+sinus_mask
-        cv2.imwrite(os.path.join(savePath,name+str(i)+'_binarymask.png'),binary_mask)
+        node_stats['avg_germ_width'.append(np.round(ln.germinals._sizes[0]*1e6,2)) 
+        node_stats['avg_germ_height'.append(np.round(ln.germinals._sizes[1]*1e6,2))
         
-    stats={
-        'name':names,
-        'ln_idx':ln_idx,
-        'ln_area':ln_areas,
-        'germ_number':germ_num,
-        'avg_germ_width':avg_germ_width,
-        'avg_germ_height':avg_germ_height,
-        'total_germ_area':total_germ_area,
-        'avg_germ_area': avg_germ_areas,
-        'avg_germ_shape':avg_germ_shape,
-        'max_germ_area': max_germ_area,
-        'min_germ_area': min_germ_area,
-        'germ_distance_to_centre':cent_dist,
-        'germ_distance_to_boundary':bound_dist,
-        'total_sinus_area':total_sinus_area
-
-    }
-
-    #return stats
+        areas=ln.germinals._areas           
+        node_stats['avg_germ_area'].append(np.round(np.mean(areas)*1e6,4))
+        node_stats['min_germ_area'].append(np.round(np.min(areas)*1e6,4))
+        node_stats['max_germ_shape'].append(np.round(np.max(areas)*1e6,4))
+        node_stats['avg_germ_shape'].append(np.mean(ln.germinals.circularity()))
+        node_stats['germ_dist_centre'].append(ln.germinals.dist_to_centre()
+        node_stats['germ_distance_to_boundary'].append(np.mean(ln.germinals.dist_to_boundary()))
+        node_stats['total_sinus_area'].append(np.round(ln.sinuses.total_area,2))
 
 
+"""
 def main(wsi_paths, mask_paths, save_path):
     
     names=[]
@@ -267,7 +237,7 @@ def main(wsi_paths, mask_paths, save_path):
         print(k, len(v))
         statsDf=pd.DataFrame(stats)
     statsDf.to_csv('/home/verghese/node_details_cancer_90552.csv')
-
+"""
 
 if __name__ == '__main__':
     ap=argparse.ArgumentParser()
@@ -294,19 +264,14 @@ if __name__ == '__main__':
 
     if not batch:
         mask = cv2.imread(args['maskpath'])
-        wsi=openslide.OpenSlide(args['wsipath'])
+        wsi = openslide.OpenSlide(args['wsipath'])
 
         name=os.path.basename(m_path)[:-4]
         print('image name: {}'.format(name))
         
 
 
-
-
-
-
-
-
+"""
     slide_paths=getFiles(wsiPath,'ndpi')
     print(f'Slides:n={len(slide_paths)}'
     mask_paths=getFiles(maskPath,'png')
@@ -318,3 +283,4 @@ if __name__ == '__main__':
 
     print('analysing lymph nodes...',flush=True)
     main(slide_paths, mask_paths)
+"""
