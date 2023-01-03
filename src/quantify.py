@@ -20,18 +20,80 @@ def getFiles(filesPath, ext):
     return filesLst
 
 
-def analyseNodes(wsiPath,maskPath,savePath):
-    cancerPts='/home/verghese/cancer-points-training'
-    print(maskPath)
-    print('analysing lymph nodes...',flush=True)
-    totalImages=getFiles(wsiPath,'ndpi')
-    print('Image N: {}'.format(len(totalImages),flush=True))
-    totalMasks=getFiles(maskPath,'png')
-    print('Mask N: {}'.format(len(totalMasks),flush=True))
-    cancerPoints=getFiles(cancerPts,'.csv')
-    all_ln_status=pd.read_csv('/home/verghese/ln_status_3.csv',index_col=['image_name'])
+def ln_quantification(mask,slide)
 
-    totalMasks=[t for t in totalMasks if 'image' not in t]
+    dims=slide.dimensions
+    slide_thumb=np.array(wsi.get_thumbnail(size=wsi.level_dimensions[6]))
+
+    #mdims=mask.shape
+    slide_thumb=np.array(wsi.get_thumbnail(size=wsi.level_dimensions[6]))
+    #mx,my=wsi.level_dimensions[6]
+    mask=cv2.resize(mask,wsi.level_dimensions[6])
+    mdims=image.shape
+    mask[:,:,0][mask[:,:,0]==128]=0
+    mask[:,:,1][mask[:,:,1]==255]=0
+    mask[:,:,2][mask[:,:,2]==128]=0
+    mask[:,:,2][mask[:,:,2]==255]=0 
+    mask[:,:,0][mask[:,:,0]!=0]=255
+    mask[:,:,0][mask[:,:,1]!=0]=128
+    mask=mask[:,:,0]
+
+    mShape=mask.shape
+    iShape=image.shape
+    w=dims[0]
+    h=dims[1]
+    wNew=mShape[0]
+    hNew=mShape[1]
+    slide = me.Slide(image,mask,w,h,wNew,hNew)
+    num = slide.extractLymphNodes(255,128)
+    print('number of ln: {}'.format(num))
+
+    for i, ln in enumerate(slide._lymphNodes):
+
+        mask=cv2.drawContours(ln.image,ln.contour,-1,(0,0,255),3)
+        lnAreas.append(ln.area*1e6)
+        cv2.imwrite(os.path.join(savePath,name+str(i)+'_ln.png'),mask)
+        numGerms=ln.germinals.detectGerminals()
+        numSinuses=ln.sinuses.detectSinuses()
+        ln.germinals.measureSizes()
+        ln.germinals.measureAreas()
+        plotS=ln.sinuses.visualiseSinus()
+        plotG=ln.germinals.visualiseGerminals()
+
+        sinus_mask=ln.sinuses.sinusMask
+        germinal_mask=ln.germinals.mask
+        binary_mask=np.zeros((mask.shape))
+        binary_mask=cv2.fillPoly(binary_mask,pts=[ln.contour],color=(255,255,255))
+
+        germinal_mask = germinal_mask[:,:,None]*np.ones(3, dtype=int)[None,None,:]
+        sinus_mask = sinus_mask[:,:,None]*np.ones(3, dtype=int)[None,None,:]
+
+        binary_mask[germinal_mask==255]=0
+        germinal_mask[:,:,0]=0
+        germinal_mask[:,:,2]=0
+
+        sinus_mask[sinus_mask==128]=255
+        binary_mask[sinus_mask==255]=0
+        sinus_mask[:,:,0]=0
+        sinus_mask[:,:,1]=0
+
+        binary_mask[:,:,1]=0
+        binary_mask[:,:,2]=0
+
+        binary_mask=binary_mask+germinal_mask+sinus_mask
+        cv2.imwrite(os.path.join(savePath,name+str(i)+'_binarymask.png'),binary_mask)
+
+
+
+
+
+
+
+
+
+
+def main(wsi_paths, mask_paths, save_path):
+    
     names=[]
     lnIdx=[]
     lnAreas=[]
@@ -53,68 +115,28 @@ def analyseNodes(wsiPath,maskPath,savePath):
     patients=[]
     ln_statuses=[]
 
-    print('total number of images', len(totalImages))
-    print('total number of masks', len(totalMasks))
-
-    for maskF in totalMasks:
-        name=os.path.basename(maskF)[:-4]
+    for m_path,s_path in zip(mask_paths,wsi_paths):
+        name=os.path.basename(m_path)[:-4]
         patient=maskF.split('/')[-2]
         print('image name: {}'.format(name))
         print('patient name:{}'.format(patient))
         
-        try:
-            wsiF=[s for s in totalImages if name in s][0]
-        except Exception as e:
-            print('missing wsi')
-            continue
-        
-        try:
-            ln_status=int(all_ln_status.loc[name]['ln_status'])
-        except Exception as e:
-            print('missing ln status')
-            continue
-        if ln_status==0:
-            cancerCoords=[]
-        elif ln_status==1:
-            point_files=[pt for pt in cancerPoints if name in pt]
-            print(point_files)
-            if len(point_files)>0:
-                point_file=point_files[0]
-                points=pd.read_csv(point_file,names=['probability','x','y'])
-                points=points[points['probability']>0.85]
-                cancerCoords=list(zip(list(points['x']),list(points['y'])))
-            else:
-                print('check_names:{}'.format(patient))
-                cancerCoords=[]
-
-        mask = cv2.imread(maskF)
+        mask = cv2.imread(m_path)
         wsi=openslide.OpenSlide(wsiF)
         dims=wsi.dimensions
-        mdims=mask.shape
 
-        #image = wsi.get_thumbnail(size=(mdims[1],mdims[0]))
-        image=wsi.get_thumbnail(size=wsi.level_dimensions[6])
-        mx,my=wsi.level_dimensions[6]
-        mask=cv2.resize(mask,(mx,my))
-        #mask=mask[:,:,0]
-
-        image = np.array(image)
+        #mdims=mask.shape
+        slide_thumb=np.array(wsi.get_thumbnail(size=wsi.level_dimensions[6]))
+        #mx,my=wsi.level_dimensions[6]
+        mask=cv2.resize(mask,wsi.level_dimensions[6])
         mdims=image.shape
         mask[:,:,0][mask[:,:,0]==128]=0
         mask[:,:,1][mask[:,:,1]==255]=0
         mask[:,:,2][mask[:,:,2]==128]=0
-        mask[:,:,2][mask[:,:,2]==255]=0
-        
-        print('unique 1',np.unique(mask[:,:,0]))
-        print('unique 2',np.unique(mask[:,:,1]))
-        #mask=cv2.resize(mask,(mdims[1],mdims[0]))
-        print('unique 3',np.unique(mask[:,:,0]))
-        print('unique 4',np.unique(mask[:,:,1]))
+        mask[:,:,2][mask[:,:,2]==255]=0 
         mask[:,:,0][mask[:,:,0]!=0]=255
         mask[:,:,0][mask[:,:,1]!=0]=128
-        print('unique 5',np.unique(mask[:,:,0]))
         mask=mask[:,:,0]
-        print('unique 6',np.unique(mask))
 
         mShape=mask.shape
         iShape=image.shape
@@ -124,31 +146,9 @@ def analyseNodes(wsiPath,maskPath,savePath):
         hNew=mShape[1]
         slide = me.Slide(image,mask,w,h,wNew,hNew)
         num = slide.extractLymphNodes(255,128)
-        #f,ax=plt.subplots(1,2,figsize=(15,15))
-        #ax[0].imshow(mask,cmap='gray')
-        #ax[0].axis('off')
-        #ax[1].imshow(image,cmap='gray')
-        #ax[1].axis('off')
-        #plt.show()
-        #cv2.imwrite('plots/'+name+'_image.png',image)
         print('number of ln: {}'.format(num))
 
         for i, ln in enumerate(slide._lymphNodes):
-            #####checking cancer section#######
-            slide_contour=slide.contours[i]
-            if len(cancerCoords)>0:
-                check=[cv2.pointPolygonTest(slide_contour,pt,False) for pt in cancerCoords]
-                check=list(filter(lambda x: x>0,check))
-                if len(check)>0:
-                    status="involved"
-                else:
-                    status="cf"
-            elif len(cancerCoords)==0:
-                if ln_status==0:
-                    status='ln-neg'
-                elif ln_status==1:
-                    status='cf'
-
 
             mask=cv2.drawContours(ln.image,ln.contour,-1,(0,0,255),3)
             lnAreas.append(ln.area*1e6)
@@ -265,16 +265,52 @@ def analyseNodes(wsiPath,maskPath,savePath):
     statsDf.to_csv('/home/verghese/node_details_cancer_90552.csv')
 
 
-
 if __name__ == '__main__':
     ap=argparse.ArgumentParser()
-    ap.add_argument('-wp','--wsipath',required=True,help='path to wholeslide images')
-    ap.add_argument('-mp','--maskpath',required=True,help='path to prediction masks')
-    ap.add_argument('-sp','--savepath',required=True,help='path to save plots and stats')
+    ap.add_argument(
+        '-wp',
+        '--wsipath',
+        required=True,
+        help='path to wholeslide images'
+    )
+    ap.add_argument(
+        '-mp',
+        '--maskpath',
+        required=True,
+        help='path to prediction masks'
+    )
+    ap.add_argument(
+        '-sp',
+        '--savepath',
+        required=True,
+        help='path to save plots and stats'
+    )
 
     args=vars(ap.parse_args())
-    wsiPath=args['wsipath']
-    maskPath=args['maskpath']
-    savePath=args['savepath']
 
-    analyseNodes(wsiPath,maskPath,savePath)
+    if not batch:
+        mask = cv2.imread(args['maskpath'])
+        wsi=openslide.OpenSlide(args['wsipath'])
+
+        name=os.path.basename(m_path)[:-4]
+        print('image name: {}'.format(name))
+        
+
+
+
+
+
+
+
+
+    slide_paths=getFiles(wsiPath,'ndpi')
+    print(f'Slides:n={len(slide_paths)}'
+    mask_paths=getFiles(maskPath,'png')
+
+    totalMasks=[t for t in totalMasks if 'image' not in t]
+    print(f'Masks:n={len(mask_paths)}'
+    
+    #all_ln_status=pd.read_csv('/home/verghese/ln_status_3.csv',index_col=['image_name'])
+
+    print('analysing lymph nodes...',flush=True)
+    main(slide_paths, mask_paths)
