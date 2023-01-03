@@ -35,12 +35,18 @@ node_stats={
         'total_sinus_area': []
     }
 
-def ln_quantification(mask,wsi)
+def ln_quantification(mask,wsi):
 
     dims=wsi.dimensions
+    x_res=slide.properties[openslide.PROPERTY_NAME_MPP_X]
+    y_res=slide.properties[openslide.PROPERTY_NAME_MPP_Y]
+
+    scale=wsi.level_dimensions[0])/wsi.level_dimensions[1])
+    maxres = float(slide.properties[openslide.PROPERTY_NAME_OBJECTIVE_POWER]
+
     wsi_thumb=np.array(wsi.get_thumbnail(size=wsi.level_dimensions[6]))
     mask=cv2.resize(mask,wsi.level_dimensions[6])
-
+    
     slide = me.Slide(image,mask)
     num = slide.locate_nodes(255,128)
     print('number of ln: {}'.format(num))
@@ -121,6 +127,8 @@ def main(wsi_paths, mask_paths, save_path):
         slide = me.Slide(image,mask,w,h,wNew,hNew)
         num = slide.extractLymphNodes(255,128)
         print('number of ln: {}'.format(num))
+i
+
 
         for i, ln in enumerate(slide._lymphNodes):
 
@@ -237,7 +245,7 @@ def main(wsi_paths, mask_paths, save_path):
         print(k, len(v))
         statsDf=pd.DataFrame(stats)
     statsDf.to_csv('/home/verghese/node_details_cancer_90552.csv')
-"""
+
 
 if __name__ == '__main__':
     ap=argparse.ArgumentParser()
@@ -262,6 +270,7 @@ if __name__ == '__main__':
 
     args=vars(ap.parse_args())
 
+    print('analysing lymph nodes...',flush=True)
     if not batch:
         mask = cv2.imread(args['maskpath'])
         wsi = openslide.OpenSlide(args['wsipath'])
@@ -269,6 +278,7 @@ if __name__ == '__main__':
         name=os.path.basename(m_path)[:-4]
         print('image name: {}'.format(name))
         
+        ln_quantification(mask,wsi)
 
 
 """
