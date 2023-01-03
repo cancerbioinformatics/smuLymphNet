@@ -1,7 +1,5 @@
-#!/usr/local/env python3
-
-'''measure.py: Slide, LymphNode, Germinal and Sinuses
-classes used to detect the predicted features and
+'''
+measure.py: Slide, LymphNode, Germinal and Sinuses classes used to detect the predicted features and
 quantify them using contouring methods
 '''
 
@@ -21,47 +19,30 @@ class Slide():
     thresh1_args={"thresh":0,"maxval":255,"type":cv2.THRESH_TRUNC+cv2.THRESH_OTSU}
     thresh2_args={"thresh":0,"maxval":255,"type":cv2.THRESH_OTSU}
 
-    def __init__(self, slide, mask,w,h,wNew=1,hNew=1,
-                 pixWidth=0.23e-6, pixHeight=0.23e-6):
+    def __init__(
+        self, 
+        slide, 
+        mask,
+        pixWidth=0.23e-6, 
+        pixHeight=0.23e-6):
 
         self.slide=slide
         self.mask=mask
-        self.w=w
-        self.h=h
-        self.wNew=wNew
-        self.hNew=hNew
         self.pixWidth=pixWidth
         self.pixHeight=pixHeight
         self.contours=None
-        self._lymphNodes=None
+        self._lymphnodes=None
 
     @property
-    def wScale(self):
+    def w_scale(self):
         return (self.w/self.wNew)*self.pixWidth
 
     @property
-    def hScale(self):
+    def h_scale(self):
         return (self.h/self.hNew)*self.pixHeight
 
 
-    def extractLymphNodes1(self, germLabel, sinusLabel, pixelDist=9, sigmaColor=100,
-                          sigmaSpace=100, minThresh=0, maxThresh=255,
-                          threshType=cv2.THRESH_BINARY+cv2.THRESH_OTSU):
-
-        gray=cv2.cvtColor(self.slide,cv2.COLOR_BGR2GRAY)
-        blur=cv2.bilateralFilter(np.bitwise_not(gray),pixelDist,sigmaSpace,sigmaColor)
-        _,thresh=cv2.threshold(blur,minThresh,maxThresh,threshType)
-        contours,_=cv2.findContours(thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
-        contours = list(filter(lambda x: cv2.contourArea(x) > 40000, contours))
-
-        self._lymphNodes=[self._createLymphNode(c, thresh, germLabel,sinusLabel)
-                          for c in contours]
-        self._lymphNodes=list(filter(lambda x: x is not None, self._lymphNodes))
-
-        return len(self._lymphNodes)
-
-
-    def extractLymphNodes(self, germLabel, sinusLabel):
+    def detect_nodes(self, germ_label, sinus_label):
 
         img_hsv=cv2.cvtColor(self.slide,cv2.COLOR_RGB2HSV)
         lower_red=np.array([120,0,0])
@@ -72,13 +53,9 @@ class Slide():
         im_fill=np.where(m==0,233,m)
         mask=np.zeros(self.slide.shape)
         gray=cv2.cvtColor(im_fill,cv2.COLOR_BGR2GRAY)
-        #generate the blur
         blur1=cv2.bilateralFilter(np.bitwise_not(gray),**Slide.bilateral1_args)
-        #step2: make the pixeldist and sigma space larger so that the content can be linked together
         blur2=cv2.bilateralFilter(np.bitwise_not(blur1),**Slide.bilateral2_args)
-        #step3: make each lymph node looks mor like a group
         blur3=cv2.bilateralFilter(np.bitwise_not(blur2),**Slide.bilateral3_args)
-        #step4: contain more color as possible
         blur4=cv2.bilateralFilter(np.bitwise_not(blur3),**Slide.bilateral4_args)
         blur_final=255-blur4
         #threshold twice
@@ -88,33 +65,24 @@ class Slide():
         contours,_=cv2.findContours(thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
         contours=list(filter(lambda x: cv2.contourArea(x) > 9000, contours))
         self.contours=contours
-        self._lymphNodes=[self._createLymphNode(c, thresh, germLabel,sinusLabel) for c in contours]
-        self._lymphNodes=list(filter(lambda x: x is not None, self._lymphNodes))
+        self._lymphnodes=[self._create_node(c, thresh, germ_label, sinus_label) for c in contours]
+        self._lymphnodes=list(filter(lambda x: x is not None, self._lymphnodes))
         return len(self._lymphNodes)
 
 
-    def _createLymphNode(self, contour, thresh, germLabel, sinusLabel):
+    def _create_node(self, contour, thresh, germLabel, sinusLabel):
 
-        x,y,lnW,lnH=cv2.boundingRect(contour)
-        if lnW<100 or lnH<100:
-            return None
-
+        x,y,w,h=cv2.boundingRect(contour)
         #TODO: do I need to keep lnImage
-        lnMask=self.mask[y:y+lnH,x:x+lnW]
-        lnImage=self.slide[y:y+lnH,x:x+lnW]
-        new=thresh[y:y+lnH,x:x+lnW]
-
+        ln_mask=self.mask[y:y+h,x:x+w]
+        ln_image=self.slide[y:y+h,x:x+w]
+        new=thresh[y:y+h,x:x+w]
         #we update the contour of the ln based on new mask/image
-        contours,_=cv2.findContours(new,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+        contours,_= cv2.findContours(new,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
         areas=[cv2.contourArea(c) for c in contours]
-        lnContour = contours[areas.index(max(areas))]
+        ln_contour = contours[areas.index(max(areas))]
 
-        return LymphNode(lnContour,self,lnMask,new,lnImage,'test',germLabel,sinusLabel)
-
-    def filterLymphNodes(self):
-        #TODO: how do we decide what to filter - blob detection????
-        contours = list(filter(lambda x: cv2.contourArea(x) > 2000, contours))
-        contours = list(filter(lambda x: cv2.contourArea(x) < 100000, contours))
+        return LymphNode(ln_contour,self,ln_mask,new,ln_image,'test',germ_label,sinus_label)
 
 
 class Germinals():
@@ -134,26 +102,17 @@ class Germinals():
     def locations(self):
         if self._germinals is None:
             raise ValueError('No germinals detected')
-        return [self.ln.calculateCentre(g) for g in self._germinals]
+        return [self.ln.centre(g) for g in self._germinals]
 
     @property
-    def totalArea(self):
+    def total_area(self):
         if self._areas is None:
             raise ValueError('germinal areas not calculated')
         #print('areas', self._areas)
         return sum(self._areas)
 
-    @property
-    def totalArea2(self):
-        return (len(self.mask[self.mask==self.label])
-                *self.ln.slide.wScale*self.ln.slide.hScale)
 
-
-    def circularity():
-        return [self.ln.calculateCentre(g) for g in self._germinals]
-
-
-    def detectGerminals(self):
+    def detect_germinals(self):
 
         if len(self.mask.shape)==3:
             gray=cv2.cvtColor(self.mask, cv2.COLOR_BGR2GRAY)
@@ -166,41 +125,37 @@ class Germinals():
 
         self._germinals=contours
         self._num=len(self._germinals)
-        self.annMask=thresh
+        self.ann_mask=thresh
 
         return self._num
 
 
-    #TODO: should we use diagonal bounding box to measure
-    def measureSizes(self, pixels=False):
+    def measure_size(self, pixels=False):
 
-        #TODO how to handle no germinals for sizes
         if len(self._germinals)==0:
-            #print('here')
             self._sizes=[(0,0)]
         else:
-            self._boundingBoxes=list(map(cv2.boundingRect, self._germinals))
-            self._sizes=[(b[2],b[3]) for b in self._boundingBoxes]
+            self._bounding_boxes=list(map(cv2.boundingRect, self._germinals))
+            self._sizes=[(b[2],b[3]) for b in self._bounding_boxes]
 
-            if not pixels:
-                f = lambda x: (x[0]*self.ln.slide.wScale,x[1]*self.ln.slide.hScale)
-                self._sizes=list(map(f, self._sizes))
-
+        if not pixels:
+            f = lambda x: (x[0]*self.ln.slide.w_scale,x[1]*self.ln.slide.h_scale)
+            self._sizes=list(map(f, self._sizes))
         return self._sizes
 
 
-    def measureAreas(self, pixels=False):
+    def measure_areas(self, pixels=False):
 
         self._areas=list(map(cv2.contourArea, self._germinals))
         if not pixels:
-            f = lambda x: (x*self.ln.slide.wScale*self.ln.slide.hScale)
+            f = lambda x: (x*self.ln.slide.w_scale*self.ln.slide.h_scale)
             self._areas=list(map(f, self._areas))
-
         return self._areas
 
 
     def circularity(self):
-        areas=self.measureAreas(pixels=True)
+
+        areas=self.measure_areas(pixels=True)
         f = lambda x: cv2.arcLength(x,True)
         perimeters = list(map(f, self._germinals))
         f = lambda x: (4*np.pi*x[0])/np.square(x[1])
@@ -208,18 +163,16 @@ class Germinals():
         return c
 
 
+    def dist_to_center(self, pixels=False):
 
-    def distanceFromCenter(self, pixels=False):
-
-        lnPnt=np.asarray(self.ln.centre)
+        ln_cent_pt=np.asarray(self.ln.centre)
         locations=[np.asarray(l) for l in self.locations]
-        f = lambda x: np.linalg.norm(lnPnt-x)
+        f = lambda x: np.linalg.norm(ln_cent_pnt-x)
         distances = list(map(f, self.locations))
-
         return distances
 
 
-    def distanceFromBoundary(self, pixels=False):
+    def dist_to_boundary(self, pixels=False):
 
         pnts=np.asarray([p for p in self.locations])
         points=[np.asarray([list(p[0]) for p in self.ln.contour])
@@ -227,33 +180,20 @@ class Germinals():
 
         f = lambda x: np.sqrt(np.sum((x[0]-x[1])**2,axis=1))
         dist = list(map(f, zip(points,pnts)))
-        minIdx = list(map(np.argmin,dist))
-        return [d[i] for i,d in zip(minIdx,dist)]
+        min_idx = list(map(np.argmin,dist))
+        return [d[i] for i,d in zip(min_idx,dist)]
 
-        '''
-        dist=[]
-        for l in self.locations:
-            lnPnt=np.asarray(l)
-            points=np.asarray([list(p[0]) for p in self.ln.contour])
-            f = lambda x: np.linalg.norm(lnPnt-x)
-            distances = list(map(f, points))
-            dist.append(min(distances))
-
-        return dist
-        '''
 
     def visualiseGerminals(self, color=(0,0,255)):
 
-        plot=self.annMask
-
-        if self._germinals != 0 and len(self.annMask.shape)==2:
+        plot=self.ann_mask
+        if self._germinals != 0 and len(self.ann_mask.shape)==2:
             #self.annMask=cv2.cvtColor(self.annMask,cv2.COLOR_GRAY2BGR)
-            plot=cv2.drawContours(self.annMask, self._germinals, -1, color, 3)
+            plot=cv2.drawContours(self.ann_mask, self._germinals, -1, color, 3)
 
         if self._sizes != [(0,0)]:
             colorReverse=color[::-1]
             for b in self._boundingBoxes:
-                #print('what is going on')
                 x,y,w,h = b
                 plot=cv2.rectangle(plot,(x,y),(x+w,y+h), 180,1)
 
@@ -324,15 +264,22 @@ class Sinuses():
 
 
 class LymphNode():
-    def __init__(self, contour, slide, mask,new,image,
-                 name, germLabel, sinusLabel):
+    def __init__(
+        self, 
+        contour, 
+        slide, 
+        mask,
+        new,
+        image,         
+        name, 
+        germ_label, 
+        sinus_label):
 
         self.slide=slide
         self.contour=contour
         self.mask=mask
         self.new=new
         self.image=image
-        self.centre=self.calculateCentre(contour)
         #self.area=cv2.contourArea(contour)
         self.germinals = Germinals(self,mask.copy(), germLabel)
         self.sinuses = Sinuses(self,mask.copy(), sinusLabel)
@@ -340,11 +287,10 @@ class LymphNode():
     @property
     def area(self):
         a=cv2.contourArea(self.contour)
-        return a*self.slide.wScale*self.slide.hScale
+        return a*self.slide.w_scale*self.slide.h_scale
 
-
-    @staticmethod
-    def calculateCentre(point):
+    @property
+    def centre(point):
 
         M = cv2.moments(point)
         x = int(M['m10']/M['m00'])
