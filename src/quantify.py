@@ -11,6 +11,18 @@ import pandas as pd
 import measure as me
 #from src.utilities.utils import getFiles
 
+
+
+#mask[:,:,0][mask[:,:,0]==128]=0
+#mask[:,:,1][mask[:,:,1]==255]=0
+#mask[:,:,2][mask[:,:,2]==128]=0
+#mask[:,:,2][mask[:,:,2]==255]=0 
+#mask[:,:,0][mask[:,:,0]!=0]=255
+#mask[:,:,0][mask[:,:,1]!=0]=128
+
+
+
+
 def getFiles(filesPath, ext):
     filesLst=[]
     for path, subdirs, files in os.walk(filesPath):
@@ -24,41 +36,21 @@ def ln_quantification(mask,slide)
 
     dims=slide.dimensions
     slide_thumb=np.array(wsi.get_thumbnail(size=wsi.level_dimensions[6]))
-
-    #mdims=mask.shape
-    slide_thumb=np.array(wsi.get_thumbnail(size=wsi.level_dimensions[6]))
-    #mx,my=wsi.level_dimensions[6]
     mask=cv2.resize(mask,wsi.level_dimensions[6])
-    mdims=image.shape
-    mask[:,:,0][mask[:,:,0]==128]=0
-    mask[:,:,1][mask[:,:,1]==255]=0
-    mask[:,:,2][mask[:,:,2]==128]=0
-    mask[:,:,2][mask[:,:,2]==255]=0 
-    mask[:,:,0][mask[:,:,0]!=0]=255
-    mask[:,:,0][mask[:,:,1]!=0]=128
-    mask=mask[:,:,0]
 
-    mShape=mask.shape
-    iShape=image.shape
-    w=dims[0]
-    h=dims[1]
-    wNew=mShape[0]
-    hNew=mShape[1]
-    slide = me.Slide(image,mask,w,h,wNew,hNew)
-    num = slide.extractLymphNodes(255,128)
+    slide = me.Slide(image,mask)
+    num = slide.locate_nodes(255,128)
     print('number of ln: {}'.format(num))
 
     for i, ln in enumerate(slide._lymphNodes):
 
-        mask=cv2.drawContours(ln.image,ln.contour,-1,(0,0,255),3)
-        lnAreas.append(ln.area*1e6)
-        cv2.imwrite(os.path.join(savePath,name+str(i)+'_ln.png'),mask)
-        numGerms=ln.germinals.detectGerminals()
-        numSinuses=ln.sinuses.detectSinuses()
+        #mask=cv2.drawContours(ln.image,ln.contour,-1,(0,0,255),3)
+        #lnAreas.append(ln.area*1e6)
+        #cv2.imwrite(os.path.join(savePath,name+str(i)+'_ln.png'),mask)
+        num_germs=ln.germinals.detectGerminals()
+        num_sinuses=ln.sinuses.detectSinuses()
         ln.germinals.measureSizes()
         ln.germinals.measureAreas()
-        plotS=ln.sinuses.visualiseSinus()
-        plotG=ln.germinals.visualiseGerminals()
 
         sinus_mask=ln.sinuses.sinusMask
         germinal_mask=ln.germinals.mask
@@ -82,14 +74,26 @@ def ln_quantification(mask,slide)
 
         binary_mask=binary_mask+germinal_mask+sinus_mask
         cv2.imwrite(os.path.join(savePath,name+str(i)+'_binarymask.png'),binary_mask)
+        
+    stats={
+        'name':names,
+        'ln_idx':ln_idx,
+        'ln_area':ln_areas,
+        'germ_number':germ_num,
+        'avg_germ_width':avg_germ_width,
+        'avg_germ_height':avg_germ_height,
+        'total_germ_area':total_germ_area,
+        'avg_germ_area': avg_germ_areas,
+        'avg_germ_shape':avg_germ_shape,
+        'max_germ_area': max_germ_area,
+        'min_germ_area': min_germ_area,
+        'germ_distance_to_centre':cent_dist,
+        'germ_distance_to_boundary':bound_dist,
+        'total_sinus_area':total_sinus_area
 
+    }
 
-
-
-
-
-
-
+    #return stats
 
 
 def main(wsi_paths, mask_paths, save_path):
