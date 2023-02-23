@@ -35,14 +35,16 @@ class Slide():
 
     @property
     def w_scale(self):
-        return (self.w/self.wNew)*self.pixWidth
+        #return (self.w/self.wNew)*self.pixWidth
+        return self.pixWidth
 
     @property
     def h_scale(self):
-        return (self.h/self.hNew)*self.pixHeight
+        #return (self.h/self.hNew)*self.pixHeight
+        return self.pixHeight
 
 
-    def detect_nodes(self, germ_label, sinus_label):
+    def locate_nodes(self, germ_label, sinus_label):
 
         img_hsv=cv2.cvtColor(self.slide,cv2.COLOR_RGB2HSV)
         lower_red=np.array([120,0,0])
@@ -67,10 +69,10 @@ class Slide():
         self.contours=contours
         self._lymphnodes=[self._create_node(c, thresh, germ_label, sinus_label) for c in contours]
         self._lymphnodes=list(filter(lambda x: x is not None, self._lymphnodes))
-        return len(self._lymphNodes)
+        return len(self._lymphnodes)
 
 
-    def _create_node(self, contour, thresh, germLabel, sinusLabel):
+    def _create_node(self, contour, thresh, germ_label, sinus_label):
 
         x,y,w,h=cv2.boundingRect(contour)
         #TODO: do I need to keep lnImage
@@ -102,7 +104,7 @@ class Germinals():
     def locations(self):
         if self._germinals is None:
             raise ValueError('No germinals detected')
-        return [self.ln.centre(g) for g in self._germinals]
+        return [self.centre(g) for g in self._germinals]
 
     @property
     def total_area(self):
@@ -112,6 +114,13 @@ class Germinals():
         return sum(self._areas)
 
 
+    def centre(self,c):
+        M = cv2.moments(c)
+        x = int(M['m10']/M['m00'])
+        y = int(M['m01']/M['m00'])
+
+        return x, y
+
     def detect_germinals(self):
 
         if len(self.mask.shape)==3:
@@ -119,6 +128,7 @@ class Germinals():
 
         #edges=cv2.Canny(self.mask,30,200)
         blur=cv2.bilateralFilter(self.mask,9,100,100)
+        blur=blur.astype(np.uint8)
         _,thresh=cv2.threshold(blur,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
         contours = list(filter(lambda x: cv2.contourArea(x) > 100, contours))
@@ -126,11 +136,11 @@ class Germinals():
         self._germinals=contours
         self._num=len(self._germinals)
         self.ann_mask=thresh
-
+        print(self._germinals)
         return self._num
 
 
-    def measure_size(self, pixels=False):
+    def measure_sizes(self, pixels=False):
 
         if len(self._germinals)==0:
             self._sizes=[(0,0)]
@@ -163,11 +173,11 @@ class Germinals():
         return c
 
 
-    def dist_to_center(self, pixels=False):
+    def dist_to_centre(self, pixels=False):
 
         ln_cent_pt=np.asarray(self.ln.centre)
         locations=[np.asarray(l) for l in self.locations]
-        f = lambda x: np.linalg.norm(ln_cent_pnt-x)
+        f = lambda x: np.linalg.norm(ln_cent_pt-x)
         distances = list(map(f, self.locations))
         return distances
 
@@ -200,7 +210,7 @@ class Germinals():
         return plot
 
 
-class sinuses():
+class Sinuses():
     def __init__(self, ln, mask, label):
         self.ln=ln
         mask[mask!=label]=0
@@ -214,8 +224,8 @@ class sinuses():
 
     @property
     def total_area(self):
-        return (len(self.sinusMask[self.sinusMask==self.label])
-                   *self.ln.slide.wScale*self.ln.slide.hScale)
+        return (len(self.sinus_mask[self.sinus_mask==self.label])
+                   *self.ln.slide.w_scale*self.ln.slide.h_scale)
 
 
     def detect_sinuses(self):
@@ -260,8 +270,8 @@ class LymphNode():
         self.new=new
         self.image=image
         #self.area=cv2.contourArea(contour)
-        self.germinals = Germinals(self,mask.copy(), germLabel)
-        self.sinuses = Sinuses(self,mask.copy(), sinusLabel)
+        self.germinals = Germinals(self,mask.copy(), germ_label)
+        self.sinuses = Sinuses(self,mask.copy(), sinus_label)
 
     @property
     def area(self):
@@ -269,14 +279,12 @@ class LymphNode():
         return a*self.slide.w_scale*self.slide.h_scale
 
     @property
-    def centre(point):
-
-        M = cv2.moments(point)
+    def centre(self):
+        M = cv2.moments(self.contour)
         x = int(M['m10']/M['m00'])
         y = int(M['m01']/M['m00'])
 
         return x, y
-
 
     def visualise(self):
 
