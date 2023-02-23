@@ -48,7 +48,16 @@ def ln_quantification(mask,wsi):
 
     wsi_thumb=np.array(wsi.get_thumbnail(size=wsi.level_dimensions[6]))
     mask=cv2.resize(mask,wsi.level_dimensions[6])
-    
+     
+    mask[:,:,0][mask[:,:,0]==128]=0
+    mask[:,:,1][mask[:,:,1]==255]=0
+    mask[:,:,2][mask[:,:,2]==128]=0
+    mask[:,:,2][mask[:,:,2]==255]=0        
+    #mask=cv2.resize(mask,(mdims[1],mdims[0]))
+    mask[:,:,0][mask[:,:,0]!=0]=255
+    mask[:,:,0][mask[:,:,1]!=0]=128
+    mask=mask[:,:,0]
+
     slide = me.Slide(wsi_thumb,mask)
     num = slide.locate_nodes(255,128)
     print('number of ln: {}'.format(num))
@@ -56,24 +65,35 @@ def ln_quantification(mask,wsi):
     for i, ln in enumerate(slide._lymphnodes):
         centre=label_nodes(slide.contours[i])
         wsi_thumb=cv2.putText(wsi_thumb, 'LN: ' + str(i),centre,cv2.FONT_HERSHEY_SIMPLEX,3,(0,0,0),7)
+
+        num_sinuses = ln.sinuses.detect_sinuses()
+        num_gcs = ln.germinals.detect_germinals()
+        print(f'GCs detected: {num_gcs}')
+        
         node_stats['ln_area'].append(ln.area*1e6)
-        node_stats['germ_number'].append(ln.germinals.detect_germinals())
+        node_stats['germ_number'].append(num_gcs)
         num_sinuses=ln.sinuses.detect_sinuses()
         ln.germinals.measure_sizes()
         ln.germinals.measure_areas()
-
-        node_stats['avg_germ_width'].append(np.round(ln.germinals._sizes[0]*1e6,2)) 
-        node_stats['avg_germ_height'].append(np.round(ln.germinals._sizes[1]*1e6,2))
         
+        print(ln.germinals._sizes[0])
+        node_stats['avg_germ_width'].append(np.round(ln.germinals._sizes[0][0]*1e6,2)) 
+        node_stats['avg_germ_height'].append(np.round(ln.germinals._sizes[0][1]*1e6,2))
+        
+        #print('greg',ln.germinals._germinals)
         areas=ln.germinals._areas
+        areas=[0] if len(areas)==0 else areas
+
         node_stats['avg_germ_area'].append(np.round(np.mean(areas)*1e6,4))
         node_stats['min_germ_area'].append(np.round(np.min(areas)*1e6,4))
-        node_stats['max_germ_shape'].append(np.round(np.max(areas)*1e6,4))
+        node_stats['max_germ_area'].append(np.round(np.max(areas)*1e6,4))
+        node_stats['total_germ_area'].append(np.round(np.sum(areas)*1e6,4))
         node_stats['avg_germ_shape'].append(np.mean(ln.germinals.circularity()))
-        node_stats['germ_dist_centre'].append(ln.germinals.dist_to_centre())
+        node_stats['germ_distance_to_centre'].append(ln.germinals.dist_to_centre())
         node_stats['germ_distance_to_boundary'].append(np.mean(ln.germinals.dist_to_boundary()))
-        node_stats['total_sinus_area'].append(np.round(ln.sinuses.total_area,2))
+        node_stats['total_sinus_area'].append(np.round(ln.sinuses.total_area*1e6,2))
         node_stats['name'].append(name)
+        node_stats['ln_idx'].append(i)
 
 
 if __name__ == '__main__':
@@ -115,9 +135,13 @@ if __name__ == '__main__':
 
         name=os.path.basename(mask_path)[:-4]
         print('image name: {}'.format(name))
-        
+        if '18001019' not in name:
+            continue
         ln_quantification(mask,wsi)
+        
+    for k,v in node_stats.items():
+        print(len(v))
 
-        statsDf=pd.DataFrame(stats)
-        statsDf.to_csv(os.path.join(args['save_paths'],'quantification.csv'))
+    stats_df=pd.DataFrame(node_stats)
+    stats_df.to_csv(os.path.join(args['save_paths'],'quantification.csv'))
                                      
