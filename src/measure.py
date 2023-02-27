@@ -23,26 +23,27 @@ class Slide():
         self, 
         slide, 
         mask,
-        pixWidth=0.23e-6, 
-        pixHeight=0.23e-6):
+        resolution):
+        #pixWidth=0.23e-6, 
+        #pixHeight=0.23e-6):
 
         self.slide=slide
         self.mask=mask
-        self.pixWidth=pixWidth
-        self.pixHeight=pixHeight
+        self.resolution=resolution
+        #self.pixWidth=pixWidth
+        #self.pixHeight=pixHeight
         self.contours=None
         self._lymphnodes=None
 
     @property
     def w_scale(self):
         #return (self.w/self.wNew)*self.pixWidth
-        return self.pixWidth
+        return self.resolution
 
     @property
     def h_scale(self):
         #return (self.h/self.hNew)*self.pixHeight
-        return self.pixHeight
-
+        return self.resolution
 
     def locate_nodes(self, germ_label, sinus_label):
 
@@ -136,7 +137,6 @@ class Germinals():
         self._germinals=contours
         self._num=len(self._germinals)
         self.ann_mask=thresh
-        print(self._germinals)
         return self._num
 
 
