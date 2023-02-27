@@ -16,7 +16,7 @@ The trained pytorch models for germinal centre and sinus segmentation at 10x mag
 1. gc_multi.pth: germinal centre segmentation
 2. sinus_multi.pth: sinus segmentation
 
-## 2. Quantification
+## 3. Quantification
 
 Once the segmentation masks have been generated, we can quantify the segmented features. Example usage
 
