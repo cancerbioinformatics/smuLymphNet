@@ -8,6 +8,14 @@ Deep learning models to detect and quantify immune morphometric features in lymp
 2. Inference pipeline: generates entire WSI segmentation mask
 3. Quantification pipeline:
 
+## Quantification
+
+Once the segmentation masks have been generated, we can quantify the segmented features. Example usage
+
+```python
+python ./src/quantify.py -wp /folder/with/wsi -mp /folder/with/segmentation_masks -sp /folder/to_save_output
+```
+
 ## Credits
 
 The pipeline was written by the [Cancer Bioinformatics][url_cb] group at [King's College London][url_kcl], UK.
