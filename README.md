@@ -16,13 +16,19 @@ The trained pytorch models for germinal centre and sinus segmentation at 10x mag
 1. gc_multi.pth: germinal centre segmentation
 2. sinus_multi.pth: sinus segmentation
 
-## Quantification
+## 2. Quantification
 
 Once the segmentation masks have been generated, we can quantify the segmented features. Example usage
 
 ```python
 python ./src/quantify.py -wp /folder/with/wsi -mp /folder/with/segmentation_masks -sp /folder/to_save_output
 ```
+
+* `wp`: `str`, the path to the folder containing original WSI (or of a single WSI).
+* `mp` : `str`, the path to the folder containng the segmentation masks.
+* `sp`: `str` the path to save outputs
+
+
 
 ## Credits
 
