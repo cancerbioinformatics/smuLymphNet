@@ -8,6 +8,14 @@ Deep learning models to detect and quantify immune morphometric features in lymp
 2. Inference pipeline: generates entire WSI segmentation mask
 3. Quantification pipeline:
 
+
+## 1. Models
+
+The trained pytorch models for germinal centre and sinus segmentation at 10x magnification are under the ./models folder.
+
+1. gc_multi.pth: germinal centre segmentation
+2. sinus_multi.pth: sinus segmentation
+
 ## Quantification
 
 Once the segmentation masks have been generated, we can quantify the segmented features. Example usage
