@@ -16,6 +16,22 @@ The trained pytorch models for germinal centre and sinus segmentation at 10x mag
 1. gc_multi.pth: germinal centre segmentation
 2. sinus_multi.pth: sinus segmentation
 
+## 2. Inference
+
+Perform inference at 10x magnification using trained germinal centre and sinus models. Example usage
+
+```python
+python ./src/inference.py -wp /folder/with/wsi -sp /output_folder/ -gm /models/gc_multi.pth -sm /models/sinus_multi.pth
+```
+
+* `wp`: `str`, the path to the folder containing original WSI (or of a single WSI).
+* `sp` : `str`, path to folder to save down segmentation masks.
+* `gm`: `str` path of trained pytorch germinal multiscale model
+* `sm`: `str` path of trained pytorch sinus multiscale model
+* `gt`: `str` threshold for germinal prediction
+* `st`: `str` threshold for sinus prediction
+* `bl`: `str` base magnification level
+
 ## 3. Quantification
 
 Once the segmentation masks have been generated, we can quantify the segmented features. Example usage
@@ -27,7 +43,6 @@ python ./src/quantify.py -wp /folder/with/wsi -mp /folder/with/segmentation_mask
 * `wp`: `str`, the path to the folder containing original WSI (or of a single WSI).
 * `mp` : `str`, the path to the folder containng the segmentation masks.
 * `sp`: `str` the path to save outputs
-
 
 
 ## Credits
