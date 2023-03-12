@@ -1,4 +1,3 @@
-#Amit Lohan
 
 import os
 import glob
@@ -20,90 +19,73 @@ from torchvision import transforms as T
 from network_gc import UNet_multi as UNet_gc
 from network_sinus import UNet_multi as UNet_sinus
 from utils import *
+from stitching import stitch, Canvas
 
 
-torch.set_grad_enabled(False)
+def patching(dims, step, tile_dim):
+    y_dim,x_dim=dims
+    for y in range(0, y_dim, step):
+        for x in range(0, x_dim, step):
+            x_new = x_dim-tile_dim if x+tile_dim>x_dim else x
+            y_new = y_dim-tile_dim if y+tile_dim>y_dim else y
+            yield x_new, y_new
 
-def wsi_multiscale_inference(model_gc,model_sinus):
 
-    try:
-        image_dims=get_imdims(image_path)
-    except Exception as e:
-        print(e,flush=True)
-         continue
-    
-    downsample_x=int(image_dims[1]/downsample_factor + 1)
-    downsample_y=int(image_dims[0]/downsample_factor + 1)
-    pred_mask=np.zeros((downsample_x,downsample_y))
+def predict(model, tile, thold, args, feature="gc"):
 
-    num_patches=get_num_patches(image_path,None,chopsize,slidesize)
-    slide=openslide.OpenSlide(image_path)
-    #slide_thumbnail=slide.get_thumbnail((1000,1000))
-    #slide_thumbnail=np.array(slide_thumbnail)   
-    #thumb_path=os.path.join(SAVE_PATH,image_name+'_thumbnail.png')
-    #cv2.imwrite(thumb_path,slide_thumbnail)
- 
-    for patch,x,y,pos in get_patches(image_path,None,chopsize,slidesize):
-        start_time = datetime.datetime.now()
-        if pos!='m':
-            continue
-        
-        #GERMINAL prediction
-
-        model_gc.to(device)
-        patch=(get_transform(patch).unsqueeze(0)).to(device)
-        prediction_gc=model_gc(patch)
-        model_gc=model_gc.cpu()
-        prediction_gc.to(device)
-
-        #SINUS prediction
-        model_sinus.to(device)
-        patch=patch.to(device)
-        prediction_sinus=model_sinus(patch)
-        model_sinus=model_sinus.cpu()
-        prediction_sinus.to(device)
-
-        #Class probabilities
-        #prediction_gc.to(device)
-        #prediction_sinus.to(device)
-        probs_gc=F.softmax(prediction_gc,1)
-        probs_sinus=F.softmax(prediction_sinus,1)
+    model.to(device)
+    tile=tile.to(device)
+    prediction=model(tile)
+    probs=F.softmax(prediction,1)
                 
-        parr_gc=(probs_gc[0][1,:,:].cpu().detach().numpy())*255.0
-        parr_sinus=(probs_sinus[0][1,:,:].cpu().detach().numpy())*255.0
-        parr_gc=parr_gc.astype(np.uint8)
-        parr_sinus=parr_sinus.astype(np.uint8)
+    probs=(probs[0][1,:,:].cpu().detach().numpy())*255.0
+    probs=probs.astype(np.uint8)
+    new_dim=(args.tile_dim//args.downsample,args.tile_dim//args.downsample) 
+    probs=cv2.resize(probs, new_dim, interpolation = cv2.INTER_AREA)
+    
+    label = 255 if feature="gc" else 128
+    probs[probs<=thold]=0
+    probs[probs>thold]=label
+    probs[probs>255]=255
+    return probs
 
-        parr_gc = cv2.resize(parr_gc, ddims, interpolation = cv2.INTER_AREA)
-        parr_sinus = cv2.resize(parr_sinus, ddims, interpolation = cv2.INTER_AREA)
+
+def get_segmentation(slide,model_gc,model_sinus,args):
+
+    c=Canvas(w,h)
+    margin=int((args.tile_dim-args.stride)/2)
+    wsi_dims=slide.level_dimensions[args.level] 
+    h, w = wsi_dims[0]/10, wsi_dims[1]/10
+    c=Canvas(w,h)
+    for x, y in patching(wsi_dims, args.stride, args.tile_dim):
+        tile = slide.read_region((
+            y*2**args.level,x*2**args.level),
+            args.level,
+            (args.tile_dim,args.tile_dim)
+        )
         
-        #Get class prediction
-        parr_gc[parr_gc<=gc_thold]=0
-        parr_gc[parr_gc>gc_thold]=255
-        parr_sinus[parr_sinus<=sinus_thold]=0
-        parr_sinus[parr_sinus>sinus_thold]=128
-            
-        #parr=np.array(patch)[:,:,0]
-        #parr=cv2.resize(parr,ddims, interpolation = cv2.INTER_AREA)
-        x=x//downsample_factor
-        y=y//downsample_factor 
-        parr=parr_gc+parr_sinus
-        parr[parr>255]=255
-        #parr=parr.astype(np.uint8)
+        if model_gc is not None:
+            gc_thold=int(255*args.gc_threshold)
+            gc_probs=predict(model_gc, tile, gc_thold, args, "gc")
+        if model_sinus is not None:
+            sinus_thold=int(255*args.sinus_threshold)
+            sinus_probs=predict(model_sinus, tile, sinus_thold, args, "sinus")
+        if (gc_feature is not None) + sinus_feature is not None):
+            probs=gc_probs+sinus_probs
 
-        #merge patches
-        pred_mask=stitch_patch(
-            pred_mask,
-            parr,
-            x,
-            y,
-            pos,
-            slidesize//downsample_factor,
-            chopsize//downsample_factor,
-            margin//downsample_factor
-            )
-        #Added save to patient directory in save folder - Greg
-    return pred_mask
+        stitch(
+            c,
+            tile, 
+            int(x//args.downsample), 
+            int(y//args.downsample), 
+            h,
+            w,
+            int(tile_dim/args.downsample),
+            int(step/args.downsample), 
+            int(margin/args.downsample)
+        )
+
+    return c.canvas  
 
 
 if __name__=="__main__":
@@ -114,62 +96,64 @@ if __name__=="__main__":
         required=True,
         help='path to trained torch GC model'
     )
-
     ap.add_argument(
         '-sm', 
         '--sinus_model',
         required=True,
         help='path to trained torch sinus model'
     )
-
     ap.add_argument(
         '-wp',
         '--wsi_path',
         required=True,
         help='path to WSIs'
     )
-
     ap.add_argument(
         '-sp',
         '--save_path',
         required=True,
         help='directory to save results'
     )
-
     ap.add_argument(
         '-gt',
         '--gc_threshold',
         default=0.9,
         help='gc model prediction threshold'
     )
-
     ap.add_argument(
         '-st',
         '--sinus_threshold',
         default=0.9,
         help='sinus model prediction threshold'
     )
-
     ap.add_argument(
         '-bl',
         '--mag_base_level',
         default=0,
         help='WSI base magnification level'
     )
+    ap.add_argument(
+        '-ts',
+        '--tile_dim',
+        default=1600,
+        help='dimensions of tiles (tile_sizextile_size)'
+    )
+    ap.add_argument(
+        '-ss',
+        '--stride_size',
+        default=600,
+        help='size of stride for stepping across WSI'
+    )
+    ap.add_argument(
+        '-ds',
+        '--downsample',
+        default=0,
+        help='downsample size'
 
     args=parser.parse_args()
     print('Initiating.....',flush=True)
 
     torch.set_grad_enabled(False)
-
-    downsample_factor=10
-    chopsize=downsample_factor*160
-    slidesize=600
-    margin=int((chopsize-slidesize)/2)
-    gc_thold=int(255*args.gc_threshold)
-    sinus_thold=int(255*args.sinus_threshold)
-    ddims=(chopsize//downsample_factor,chopsize//downsample_factor)
-
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     device2 =torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
@@ -187,8 +171,9 @@ if __name__=="__main__":
     for i in range(len(image_paths)):
         image_path=image_paths[i]
         image_name=os.path.basename(image_path)
+        slide=openslide.OpenSlide(args.image_path)
         print(f'Slide:{image_name}',flush=True)
-        pred_mask=wsi_multiscale_inference(image_path,model_gc,model_sinus)
+        pred_mask=get_segmentation(slide,model_gc,model_sinus,args)
         cv2.imwrite(os.path.join(args.save_path,image_name+'.png'),pred_mask) 
 
     print(f'Finished segmenting {len(image_paths)} WSI')
