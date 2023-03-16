@@ -29,12 +29,15 @@ python ./src/inference.py -wp /folder/with/wsi -sp /output_folder/ -gm /models/g
 Arguments as follows.
 
 * `wp`: `str`, the path to the folder containing original WSI (or of a single WSI).
-* `sp` : `str`, path to folder to save down segmentation masks.
+* `sp` :`str`, path to folder to save down segmentation masks.
 * `gm`: `str` path of trained pytorch germinal multiscale model
 * `sm`: `str` path of trained pytorch sinus multiscale model
-* `gt`: `str` threshold for germinal prediction
-* `st`: `str` threshold for sinus prediction
-* `bl`: `str` base magnification level
+* `gt`: `float` threshold for germinal prediction
+* `st`: `float` threshold for sinus prediction
+* `bl`: `int` base magnification level
+* `td`: `int` tile dimensions
+* `ss`: `int` stride 
+* 'ds': `int` downsample
 
 Default arguments, stride, thresholds and tile size can be experimented with for best results. Produces WSI segmentation mask and thumbnail of slides in output directory. 
 
