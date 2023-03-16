@@ -1,6 +1,12 @@
 # smuLymphNet
 
-Deep learning models to detect and quantify immune morphometric (1. Germinal centres 2. sinuses) features in lymph nodes using a multiscale fully convolutional networks trained on breast cancer patients from Guy's hospital.
+![](smyLymphNet.png)
+
+
+This repository contains trained deep learning models to detect and quantify immune morphometric (1. Germinal centres 2. sinuses) features in lymph nodes using a multiscale fully convolutional networks trained on breast cancer patients from Guy's hospital.
+
+In order to use the scripts present in this repository, make sure that you are working in a python environment that satisfies the requirements of
+`requirement.txt`.
 
 ## Pipeline summary 
 
