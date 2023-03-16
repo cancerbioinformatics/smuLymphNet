@@ -4,6 +4,7 @@ import glob
 import random
 import json
 import random
+import argparse
 import datetime
 from PIL import Image
 
@@ -31,10 +32,21 @@ def patching(dims, step, tile_dim):
             yield x_new, y_new
 
 
+def get_transform(img):
+    img=img.convert('RGB')
+    tt = T.ToTensor()
+    n = T.Normalize(
+        (0.7486, 0.5743, 0.7222),
+        (0.0126, 0.0712, 0.0168))
+    img = tt(img)
+    img = n(img)
+    return img
+
+
 def predict(model, tile, thold, args, feature="gc"):
 
     model.to(device)
-    tile=tile.to(device)
+    tile=(get_transform(tile).unsqueeze(0)).to(device)
     prediction=model(tile)
     probs=F.softmax(prediction,1)
                 
@@ -43,7 +55,7 @@ def predict(model, tile, thold, args, feature="gc"):
     new_dim=(args.tile_dim//args.downsample,args.tile_dim//args.downsample) 
     probs=cv2.resize(probs, new_dim, interpolation = cv2.INTER_AREA)
     
-    label = 255 if feature="gc" else 128
+    label = 255 if feature=="gc" else 128
     probs[probs<=thold]=0
     probs[probs>thold]=label
     probs[probs>255]=255
@@ -52,36 +64,36 @@ def predict(model, tile, thold, args, feature="gc"):
 
 def get_segmentation(slide,model_gc,model_sinus,args):
 
-    c=Canvas(w,h)
     margin=int((args.tile_dim-args.stride)/2)
-    wsi_dims=slide.level_dimensions[args.level] 
+    wsi_dims=slide.level_dimensions[args.base_level] 
     h, w = wsi_dims[0]/10, wsi_dims[1]/10
     c=Canvas(w,h)
     for x, y in patching(wsi_dims, args.stride, args.tile_dim):
+        print(x,y)
         tile = slide.read_region((
-            y*2**args.level,x*2**args.level),
-            args.level,
+            y*2**args.base_level,x*2**args.base_level),
+            args.base_level,
             (args.tile_dim,args.tile_dim)
         )
-        
+
         if model_gc is not None:
             gc_thold=int(255*args.gc_threshold)
             gc_probs=predict(model_gc, tile, gc_thold, args, "gc")
         if model_sinus is not None:
             sinus_thold=int(255*args.sinus_threshold)
             sinus_probs=predict(model_sinus, tile, sinus_thold, args, "sinus")
-        if (gc_feature is not None) + sinus_feature is not None):
+        if (model_gc is not None) + (model_sinus is not None):
             probs=gc_probs+sinus_probs
 
         stitch(
             c,
-            tile, 
+            probs, 
             int(x//args.downsample), 
             int(y//args.downsample), 
             h,
             w,
-            int(tile_dim/args.downsample),
-            int(step/args.downsample), 
+            int(args.tile_dim/args.downsample),
+            int(args.stride/args.downsample), 
             int(margin/args.downsample)
         )
 
@@ -123,12 +135,12 @@ if __name__=="__main__":
     ap.add_argument(
         '-st',
         '--sinus_threshold',
-        default=0.9,
+        default=0.75,
         help='sinus model prediction threshold'
     )
     ap.add_argument(
         '-bl',
-        '--mag_base_level',
+        '--base_level',
         default=0,
         help='WSI base magnification level'
     )
@@ -140,22 +152,22 @@ if __name__=="__main__":
     )
     ap.add_argument(
         '-ss',
-        '--stride_size',
+        '--stride',
         default=600,
         help='size of stride for stepping across WSI'
     )
     ap.add_argument(
         '-ds',
         '--downsample',
-        default=0,
+        default=10,
         help='downsample size'
-
-    args=parser.parse_args()
+    )
+    args=ap.parse_args()
     print('Initiating.....',flush=True)
 
     torch.set_grad_enabled(False)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    device2 =torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    #device2 =torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
     print("Loading models....",flush=True)
     model_gc = UNet_gc(3,2)
@@ -163,7 +175,7 @@ if __name__=="__main__":
     model_gc.to(device)
     model_sinus = UNet_sinus(3,2)
     model_sinus.load_state_dict(torch.load(args.sinus_model,map_location='cpu'))
-    model_sinus.to(device2)
+    model_sinus.to(device)
 
     image_paths=glob.glob(os.path.join(args.wsi_path,'*'))
     print('num images:{}'.format(len(image_paths)),flush=True)
@@ -171,7 +183,7 @@ if __name__=="__main__":
     for i in range(len(image_paths)):
         image_path=image_paths[i]
         image_name=os.path.basename(image_path)
-        slide=openslide.OpenSlide(args.image_path)
+        slide=openslide.OpenSlide(image_path)
         print(f'Slide:{image_name}',flush=True)
         pred_mask=get_segmentation(slide,model_gc,model_sinus,args)
         cv2.imwrite(os.path.join(args.save_path,image_name+'.png'),pred_mask) 
