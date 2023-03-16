@@ -43,7 +43,7 @@ Arguments as follows.
 * `bl`: `int` base magnification level
 * `td`: `int` tile dimensions
 * `ss`: `int` stride 
-* 'ds': `int` downsample
+* `ds`: `int` downsample
 
 Default arguments, stride, thresholds and tile size can be experimented with for best results. Produces WSI segmentation mask and thumbnail of slides in output directory. 
 
