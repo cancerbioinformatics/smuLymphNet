@@ -46,7 +46,7 @@ Arguments are:
 * `mp` : `str`, the path to the folder containng the segmentation masks.
 * `sp`: `str` the path to save outputs
 
-This produces a csv file with quantification number, size and shapre of gcs and total sinuses area normalised by the lymph node area.
+This produces a csv file with quantification number, size and shape of gcs and total sinuses area normalised by the lymph node area.
 
 
 ## Credits
