@@ -51,7 +51,7 @@ This produces a csv file with quantification number, size and shapre of gcs and 
 
 ## Credits
 
-The pipeline was written by the [Cancer Bioinformatics][url_cb] group at [King's College London][url_kcl], UK.
+The pipeline was written by the [Cancer Bioinformatics][url_cb] group at [King's College London][url_kcl], UK and the MeDAL lab at ITT Bombay
 
 Development and implementation by [Gregory Verghese](gregory.e.verghese@kcl.ac.uk), [Mengyuan Li](mengyuan.3.li@@kcl.ac.uk), [Nikhil Cherian](nikhilcherian30@gmail.com). 
 
