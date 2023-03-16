@@ -1,6 +1,6 @@
 # smuLymphNet
 
-Deep learning models to detect and quantify immune morphometric features in lymph nodes using multiscale fully convolutional networks. 
+Deep learning models to detect and quantify immune morphometric (1. Germinal centres 2. sinuses) features in lymph nodes using a multiscale fully convolutional networks trained on breast cancer patients from Guy's hospital.
 
 ## Pipeline summary 
 
@@ -39,10 +39,14 @@ Once the segmentation masks have been generated, we can quantify the segmented f
 ```python
 python ./src/quantify.py -wp /folder/with/wsi -mp /folder/with/segmentation_masks -sp /folder/to_save_output
 ```
+ 
+Arguments are:
 
 * `wp`: `str`, the path to the folder containing original WSI (or of a single WSI).
 * `mp` : `str`, the path to the folder containng the segmentation masks.
 * `sp`: `str` the path to save outputs
+
+This produces a csv file with quantification number, size and shapre of gcs and total sinuses area normalised by the lymph node area.
 
 
 ## Credits
