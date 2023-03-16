@@ -18,11 +18,15 @@ The trained pytorch models for germinal centre and sinus segmentation at 10x mag
 
 ## 2. Inference
 
-Perform inference at 10x magnification using trained germinal centre and sinus models. Example usage
+Performs inference at 10x magnification using trained germinal centre and sinus models. Base magnification level of WSIs should be set. Ideally needs a single GPU. 
+
+Example usage
 
 ```python
 python ./src/inference.py -wp /folder/with/wsi -sp /output_folder/ -gm /models/gc_multi.pth -sm /models/sinus_multi.pth
 ```
+
+Arguments as follows.
 
 * `wp`: `str`, the path to the folder containing original WSI (or of a single WSI).
 * `sp` : `str`, path to folder to save down segmentation masks.
@@ -31,6 +35,8 @@ python ./src/inference.py -wp /folder/with/wsi -sp /output_folder/ -gm /models/g
 * `gt`: `str` threshold for germinal prediction
 * `st`: `str` threshold for sinus prediction
 * `bl`: `str` base magnification level
+
+Default arguments, stride, thresholds and tile size can be experimented with for best results. Produces WSI segmentation mask and thumbnail of slides in output directory. 
 
 ## 3. Quantification
 
