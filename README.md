@@ -1,6 +1,6 @@
 # smuLymphNet
 
-![](smyLymphNet.png)
+![](smuLymphNet.png)
 
 
 This repository contains trained deep learning models to detect and quantify immune morphometric (1. Germinal centres 2. sinuses) features in lymph nodes using a multiscale fully convolutional networks trained on breast cancer patients from Guy's hospital.
