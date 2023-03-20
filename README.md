@@ -24,7 +24,7 @@ The trained pytorch models for germinal centre and sinus segmentation at 10x mag
 
 ## 2. Inference
 
-Performs inference at 10x magnification using trained germinal centre and sinus models. Base magnification level of WSIs should be set. Ideally needs a single GPU. 
+Performs segmentationinference at 10x magnification using trained multiscale U-Net germinal centre and sinus models. Base magnification level of WSIs should be set. Ideally needs a single GPU for inference. Can perform segmentation of each model individually by not setting the path to either one or perfom combined segmentation by setting both paths.
 
 Example usage
 
@@ -62,7 +62,6 @@ Arguments are:
 * `sp`: `str` the path to save outputs
 
 This produces a csv file with quantification number, size and shape of gcs and total sinuses area normalised by the lymph node area.
-
 
 ## Credits
 
