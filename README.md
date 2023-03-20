@@ -24,7 +24,7 @@ The trained pytorch models for germinal centre and sinus segmentation at 10x mag
 
 ## 2. Inference
 
-Performs segmentationinference at 10x magnification using trained multiscale U-Net germinal centre and sinus models. Base magnification level of WSIs should be set. Ideally needs a single GPU for inference. Can perform segmentation of each model individually by not setting the path to either one or perfom combined segmentation by setting both paths.
+Performs segmentation at 10x magnification using trained multiscale U-Net germinal centre and sinus models. Base magnification level of WSIs should be set. Ideally needs a single GPU for inference. Can perform segmentation of each model individually by not setting the path to either one or perfom combined segmentation by setting both paths.
 
 Example usage
 
