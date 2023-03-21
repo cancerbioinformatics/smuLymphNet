@@ -2,8 +2,7 @@
 
 ![](smuLymphNet.png)
 
-
-This repository contains trained deep learning models to detect and quantify immune morphometric (1. Germinal centres 2. sinuses) features in lymph nodes using a multiscale fully convolutional networks trained on breast cancer patients from Guy's hospital.
+This repository contains trained deep learning models to detect and quantify immune morphometric features (1. germinal centres (GCs); 2. sinuses) in lymph nodes on H&E-stained whole slide images (WSI) using multiscale fully convolutional networks trained on  breast cancer patients from Guy's hospital.
 
 In order to use the scripts present in this repository, make sure that you are working in a python environment that satisfies the requirements of
 `requirement.txt`.
@@ -24,7 +23,9 @@ The trained pytorch models for germinal centre and sinus segmentation at 10x mag
 
 ## 2. Inference
 
-Performs segmentation at 10x magnification using trained multiscale U-Net germinal centre and sinus models. Base magnification level of WSIs should be set. Ideally needs a single GPU for inference. Can perform segmentation of each model individually by not setting the path to either one or perfom combined segmentation by setting both paths.
+Performs segmentation on WSIs at 10x magnification using trained multiscale U-Net germinal centre and sinus models. WSIs should be placed in a single directory. WSI formats accepted are .svs, .tif, .ndpi, .vms, .vmu, .scn, .mrxs, .tiff.
+
+Base magnification level of WSIs should be set. Ideally needs a single GPU for inference. Can perform segmentation of each model individually by not setting the path to either one or perfom combined segmentation by setting both paths.
 
 Example usage
 
@@ -34,36 +35,52 @@ python ./src/inference.py -wp /folder/with/wsi -sp /output_folder/ -gm /models/g
 
 Arguments as follows.
 
-* `wp`: `str`, the path to the folder containing original WSI (or of a single WSI).
+* `wp`: `str`, the path to the folder WSIs (or of a single WSI).
 * `sp` :`str`, path to folder to save down segmentation masks.
 * `gm`: `str` path of trained pytorch germinal multiscale model
 * `sm`: `str` path of trained pytorch sinus multiscale model
 * `gt`: `float` threshold for germinal prediction
 * `st`: `float` threshold for sinus prediction
-* `bl`: `int` base magnification level
-* `td`: `int` tile dimensions
-* `ss`: `int` stride 
-* `ds`: `int` downsample
+* `bm`: `str` base magnification. Default='40'
+* `td`: `int` tile dimensions for each tile extracted from WSI for prediction: Default=1600.
+* `ss`: `int` stride for stepping across WSI: Default=600.
+* `ds`: `int` downsample factor for reducing WSI dimensions. Default=10.
 
-Default arguments, stride, thresholds and tile size can be experimented with for best results. Produces WSI segmentation mask and thumbnail of slides in output directory. 
+To reduce patching effect at edges of each tile default arguments, stride and tile size can be experimented with for best results. Thresholds for determing class of each pixel can be varied to determine best segmentation results. Produces WSI segmentation mask and thumbnail of slides in output directory. 
 
 ## 3. Quantification
 
-Once the segmentation masks have been generated, we can quantify the segmented features. Example usage
+Once the segmentation masks have been generated, we can quantify the number, average area and average shape of GCs and the total normalised sinus area per detected lymph node in the WSIS. Path to WSIs and segmentation masks needs to be set.
 
 ```python
 python ./src/quantify.py -wp /folder/with/wsi -mp /folder/with/segmentation_masks -sp /folder/to_save_output
 ```
- 
-Arguments are:
+ Arguments as follows:
 
 * `wp`: `str`, the path to the folder containing original WSI (or of a single WSI).
 * `mp` : `str`, the path to the folder containng the segmentation masks.
 * `sp`: `str` the path to save outputs
 
-This produces a csv file with quantification number, size and shape of gcs and total sinuses area normalised by the lymph node area.
+This produces a csv file with quantification details for each lymph node. Thumbnails are produced for WSI with each lymph node labelled with an index.
+
+## Data
+
+The H&E-stained lymph node dataset is publicly avaliable at https://registry.opendata.aws/smuLymphNet_WSI
 
 ## Credits
+
+This repository contains the inference and quantification framework for the smuLymphNet framework from the paper:
+
+Multiscale deep learning framework captures systemic immune features in lymph nodes predictive of triple negative breast cancer outcome in large-scale studies
+
+If you find the code/data useful, please cite the above paper:
+
+    @inproceedings{,
+        title={},
+        booktitle={},
+        author={},
+        year={}
+    }
 
 The pipeline was written by the [Cancer Bioinformatics][url_cb] group at [King's College London][url_kcl], UK and the MeDAL lab at ITT Bombay
 
