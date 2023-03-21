@@ -42,12 +42,12 @@ Arguments as follows.
 * `sm`: `str` path of trained pytorch sinus multiscale model
 * `gt`: `float` threshold for germinal prediction
 * `st`: `float` threshold for sinus prediction
-* `bl`: `int` base magnification level
-* `td`: `int` tile dimensions
-* `ss`: `int` stride 
-* `ds`: `int` downsample
+* `bm`: `str` base magnification. Default='40'
+* `td`: `int` tile dimensions for each tile extracted from WSI for prediction: Default=1600.
+* `ss`: `int` stride for stepping across WSI: Default=600.
+* `ds`: `int` downsample factor for reducing WSI dimensions. Default=10.
 
-To reduce patching effect at edges of each tile default arguments, stride and tile size can be experimented with for best results. Thresholds for setting determing class of each pixel can be varied to determine best segmentation results. Produces WSI segmentation mask and thumbnail of slides in output directory. 
+To reduce patching effect at edges of each tile default arguments, stride and tile size can be experimented with for best results. Thresholds for determing class of each pixel can be varied to determine best segmentation results. Produces WSI segmentation mask and thumbnail of slides in output directory. 
 
 ## 3. Quantification
 
@@ -74,7 +74,7 @@ This repository contains the inference and quantification framework for the smuL
 
 Multiscale deep learning framework captures systemic immune features in lymph nodes predictive of triple negative breast cancer outcome in large-scale studies
 
-If you find the code/data is useful, please cite the above paper:
+If you find the code/data useful, please cite the above paper:
 
     @inproceedings{,
         title={},
