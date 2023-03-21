@@ -17,8 +17,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import transforms as T
 
-from network_gc import UNet_multi as UNet_gc
-from network_sinus import UNet_multi as UNet_sinus
+from network_gc import UNet_multi as msunet_gc
+from network_sinus import UNet_multi as msunet_sinus
 from utils import *
 from stitching import stitch, Canvas
 
@@ -32,15 +32,15 @@ def patching(dims, step, tile_dim):
             yield x_new, y_new
 
 
-def get_transform(img):
-    img=img.convert('RGB')
-    tt = T.ToTensor()
+def get_transform(image):
+    image=image.convert('RGB')
+    transform = T.ToTensor()
     n = T.Normalize(
         (0.7486, 0.5743, 0.7222),
         (0.0126, 0.0712, 0.0168))
-    img = tt(img)
-    img = n(img)
-    return img
+    image = transform(image)
+    image = n(image)
+    return image
 
 
 def predict(model, tile, thold, args, feature="gc"):
@@ -63,16 +63,17 @@ def predict(model, tile, thold, args, feature="gc"):
 
 
 def get_segmentation(slide,model_gc,model_sinus,args):
-
+    
+    levels={'40':2,'20':1,'10':0}
+    level=levels[args.base_level]
     margin=int((args.tile_dim-args.stride)/2)
-    wsi_dims=slide.level_dimensions[args.base_level] 
+    wsi_dims=slide.level_dimensions[level] 
     h, w = wsi_dims[0]/10, wsi_dims[1]/10
     c=Canvas(w,h)
     for x, y in patching(wsi_dims, args.stride, args.tile_dim):
-        print(x,y)
         tile = slide.read_region((
-            y*2**args.base_level,x*2**args.base_level),
-            args.base_level,
+            y*2**level,x*2**level),
+            level,
             (args.tile_dim,args.tile_dim)
         )
 
@@ -82,9 +83,15 @@ def get_segmentation(slide,model_gc,model_sinus,args):
         if model_sinus is not None:
             sinus_thold=int(255*args.sinus_threshold)
             sinus_probs=predict(model_sinus, tile, sinus_thold, args, "sinus")
-        if (model_gc is not None) + (model_sinus is not None):
+        if (model_gc is not None) and (model_sinus is not None):
             probs=gc_probs+sinus_probs
-
+        elif (model_gc is None) and (model_sinus is not None):
+            probs=sinus_probs
+        elif (model_gc is not None) and (model_sinus is None):
+            probs=gc_probs
+        else:
+            print('No models loaded')
+            
         stitch(
             c,
             probs, 
@@ -105,13 +112,13 @@ if __name__=="__main__":
     ap.add_argument(
         '-gm', 
         '--germinal_model',
-        required=True,
+        default=None,
         help='path to trained torch GC model'
     )
     ap.add_argument(
         '-sm', 
         '--sinus_model',
-        required=True,
+        default=None,
         help='path to trained torch sinus model'
     )
     ap.add_argument(
@@ -141,7 +148,7 @@ if __name__=="__main__":
     ap.add_argument(
         '-bl',
         '--base_level',
-        default=0,
+        default="40",
         help='WSI base magnification level'
     )
     ap.add_argument(
@@ -170,12 +177,23 @@ if __name__=="__main__":
     #device2 =torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
     print("Loading models....",flush=True)
-    model_gc = UNet_gc(3,2)
-    model_gc.load_state_dict(torch.load(args.germinal_model,map_location='cpu'))
-    model_gc.to(device)
-    model_sinus = UNet_sinus(3,2)
-    model_sinus.load_state_dict(torch.load(args.sinus_model,map_location='cpu'))
-    model_sinus.to(device)
+
+    if args.germinal_model is not None:
+        model_gc = msunet_gc(3,2)
+        model_gc.load_state_dict(torch.load(args.germinal_model,map_location='cpu'))
+        print('loading GC model')
+    else:
+        model_gc=None
+
+    if args.sinus_model is not None:
+        model_sinus = msunet_sinus(3,2)
+        model_sinus.load_state_dict(torch.load(args.sinus_model,map_location='cpu'))
+        print('loading sinus model')
+    else:
+        model_sinus=None
+
+    print('gc',model_gc)
+    print('sinus',model_sinus)
 
     image_paths=glob.glob(os.path.join(args.wsi_path,'*'))
     print('num images:{}'.format(len(image_paths)),flush=True)

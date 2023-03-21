@@ -31,6 +31,7 @@ class DoubleConv(nn.Module):
     def forward(self, x):
         return self.double_conv(x)
 
+
 class Down_mr(nn.Module):
       
       def __init__(self,in_channels,out_channels):
@@ -60,6 +61,7 @@ class Down(nn.Module):
     def forward(self, x):
         return self.maxpool_conv(x)
 
+
 class Up(nn.Module):
     """Upscaling then double conv"""
 
@@ -82,6 +84,7 @@ class Up(nn.Module):
 
         x1 = F.interpolate(x1,(x2.shape[2],x2.shape[3]),mode='bilinear',align_corners=False)
         return self.conv(torch.cat([x2, x1], dim=1))
+
 
 class OutConv(nn.Module):
     def __init__(self, in_channels, out_channels):
