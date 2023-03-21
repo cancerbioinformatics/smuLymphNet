@@ -2,7 +2,7 @@
 
 ![](smuLymphNet.png)
 
-This repository contains trained deep learning models to detect and quantify immune morphometric features (1. Germinal centres; 2. sinuses) in lymph nodes on H&E-stained whole slide images (WSI) using multiscale fully convolutional networks trained on  breast cancer patients from Guy's hospital.
+This repository contains trained deep learning models to detect and quantify immune morphometric features (1. germinal centres (GCs); 2. sinuses) in lymph nodes on H&E-stained whole slide images (WSI) using multiscale fully convolutional networks trained on  breast cancer patients from Guy's hospital.
 
 In order to use the scripts present in this repository, make sure that you are working in a python environment that satisfies the requirements of
 `requirement.txt`.
