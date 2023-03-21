@@ -146,7 +146,7 @@ if __name__=="__main__":
         help='sinus model prediction threshold'
     )
     ap.add_argument(
-        '-bl',
+        '-bm',
         '--base_level',
         default="40",
         help='WSI base magnification level'
