@@ -55,7 +55,7 @@ Once the segmentation masks have been generated, we can quantify the number, ave
 ```python
 python ./src/quantify.py -wp /folder/with/wsi -mp /folder/with/segmentation_masks -sp /folder/to_save_output
 ```
- Arguments are:
+ Arguments as follows:
 
 * `wp`: `str`, the path to the folder containing original WSI (or of a single WSI).
 * `mp` : `str`, the path to the folder containng the segmentation masks.
