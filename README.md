@@ -65,7 +65,7 @@ This produces a csv file with quantification details for each lymph node. Thumbn
 
 ## Data
 
-The H&E-stained lymph node dataset is publicly avaliable at https://registry.opendata.aws/smuLymphNet_WSI
+The H&E-stained lymph node dataset is publicly avaliable at https://registry.opendata.aws/GRAPE
 
 ## Credits
 
