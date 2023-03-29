@@ -63,7 +63,7 @@ def ln_quantification(mask,wsi):
      
     for i, ln in enumerate(slide._lymphnodes):
         centre=label_nodes(slide.contours[i])
-        wsi_thumb=cv2.drawcontours(wsi_thumb,slide.contours[i],-1,(0,0,255),3)
+        wsi_thumb=cv2.drawContours(wsi_thumb,slide.contours[i],-1,(0,0,255),3)
         wsi_thumb=cv2.putText(wsi_thumb, 'LN: ' + str(i),centre,cv2.FONT_HERSHEY_SIMPLEX,3,(0,0,0),7)
         num_sinuses = ln.sinuses.detect_sinuses()
         num_gcs = ln.germinals.detect_germinals()
