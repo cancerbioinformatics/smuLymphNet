@@ -132,7 +132,8 @@ class Germinals():
         blur=blur.astype(np.uint8)
         _,thresh=cv2.threshold(blur,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
-        contours = list(filter(lambda x: cv2.contourArea(x) > 100, contours))
+        contours = list(filter(lambda x: cv2.contourArea(x) > 15, contours))
+
 
         self._germinals=contours
         self._num=len(self._germinals)
