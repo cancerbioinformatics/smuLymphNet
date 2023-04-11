@@ -63,7 +63,7 @@ def ln_quantification(mask,wsi):
      
     for i, ln in enumerate(slide._lymphnodes):
         centre=label_nodes(slide.contours[i])
-        wsi_thumb=cv2.drawcontours(wsi_thumb,slide.contours[i],-1,(0,0,255),3)
+        wsi_thumb=cv2.drawContours(wsi_thumb,slide.contours[i],-1,(0,0,255),3)
         wsi_thumb=cv2.putText(wsi_thumb, 'LN: ' + str(i),centre,cv2.FONT_HERSHEY_SIMPLEX,3,(0,0,0),7)
         num_sinuses = ln.sinuses.detect_sinuses()
         num_gcs = ln.germinals.detect_germinals()
@@ -125,14 +125,22 @@ if __name__ == '__main__':
     thumb_path = os.path.join(args.save_path,'thumbs')
     os.makedirs(thumb_path,exist_ok=True)
     
+    mask_path=args.mask_paths
+    wsi_path=args.wsi_paths
     mask_paths=glob.glob(os.path.join(args.mask_paths,'*'))
     wsi_paths=glob.glob(os.path.join(args.wsi_paths,'*'))
-   
+
     names=[os.path.basename(m) for m in mask_paths]
-    mask_paths=[m for _, m in sorted(zip(names,mask_paths))]
-    wsi_paths=[w for _, w in sorted(zip(names,wsi_paths))]
 
-
+    mask_paths=[]
+    wsi_paths=[]
+    for i in names:
+        name=i.replace(".png","")
+        if(os.path.exists(os.path.join(wsi_path,name)) & os.path.exists(os.path.join(mask_path,i))):
+            wsi_paths.append(os.path.join(wsi_path,name))
+            mask_paths.append(os.path.join(mask_path,i))
+                
+                
     print('Analysing lymph nodes...',flush=True)
     for mask_path, wsi_path in zip(mask_paths,wsi_paths):
         mask = cv2.imread(mask_path)
