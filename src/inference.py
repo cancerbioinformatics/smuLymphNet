@@ -19,7 +19,7 @@ from torchvision import transforms as T
 
 from network_gc import UNet_multi as msunet_gc
 from network_sinus import UNet_multi as msunet_sinus
-from utils import *
+#from utils import *
 from stitching import stitch, Canvas
 
 
