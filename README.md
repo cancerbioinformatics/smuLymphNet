@@ -83,8 +83,8 @@ If you find the code/data useful, please cite the above paper:
 	Year = {2023},
 	Journal = {The Journal of pathology},
 	ISSN = {0022-3417},
-	URL = {https://doi.org/10.1002/path.6088},
-}
+	URL = {https://doi.org/10.1002/path.6088}
+	}
 
 
 The pipeline was written by the [Cancer Bioinformatics][url_cb] group at [King's College London][url_kcl], UK and the MeDAL lab at ITT Bombay
