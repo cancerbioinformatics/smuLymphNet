@@ -75,12 +75,17 @@ Multiscale deep learning framework captures systemic immune features in lymph no
 
 If you find the code/data useful, please cite the above paper:
 
-    @inproceedings{,
-        title={},
-        booktitle={},
-        author={},
-        year={}
-    }
+    @article {PMID:37230111,
+	Title = {Multiscale deep learning framework captures systemic immune features in lymph nodes predictive of triple negative breast cancer outcome in large-scale studies},
+	Author = {Verghese, Gregory and Li, Mengyuan and Liu, Fangfang and Lohan, Amit and Kurian, Nikhil Cherian and Meena, Swati and Gazinska, Patrycja and Shah, Aekta and Oozeer, Aasiyah and Chan, Terry and Opdam, Mark and Linn, Sabine and Gillett, Cheryl and Alberts, Elena and Hardiman, Thomas and Jones, Samantha and Thavaraj, Selvam and Jones, J Louise and Salgado, Roberto and Pinder, Sarah E and Rane, Swapnil and Sethi, Amit and Grigoriadis, Anita},
+	DOI = {10.1002/path.6088},
+	Month = {May},
+	Year = {2023},
+	Journal = {The Journal of pathology},
+	ISSN = {0022-3417},
+	URL = {https://doi.org/10.1002/path.6088}
+	}
+
 
 The pipeline was written by the [Cancer Bioinformatics][url_cb] group at [King's College London][url_kcl], UK and the MeDAL lab at ITT Bombay
 
