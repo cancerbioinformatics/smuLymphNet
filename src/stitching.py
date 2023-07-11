@@ -28,7 +28,7 @@ def stitch(canvas, mask, x, y, h, w, t_dim, step, margin):
     #Top right
     elif (y==h-t_dim) and (x==0):
         m=mask[0:margin+step,margin:t_dim]
-        canvas.stitch=(m,x,y+margin)
+        canvas.stitch(m,x,y+margin)
     #lower left
     elif (y==0 and x==w-t_dim):
         m=mask[margin:t_dim,0:margin+step]
@@ -43,7 +43,9 @@ def stitch(canvas, mask, x, y, h, w, t_dim, step, margin):
         canvas.stitch(m,x+margin,y)
     #right
     elif y==h-t_dim:
+        print(canvas)
         m=mask[margin:margin+step,margin:t_dim]
+        #print(canvas.stitch)
         canvas.stitch(m,x+margin,y+margin)
     #top
     elif x==0:
