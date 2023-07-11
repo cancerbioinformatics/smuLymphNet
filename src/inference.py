@@ -91,7 +91,8 @@ def get_segmentation(slide,model_gc,model_sinus,args):
             probs=gc_probs
         else:
             print('No models loaded')
-            
+        
+        #print(c)
         stitch(
             c,
             probs, 
