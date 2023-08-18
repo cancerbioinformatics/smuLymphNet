@@ -207,6 +207,8 @@ if __name__=="__main__":
     durations = []
     for i in range(len(image_paths)):
         image_path=image_paths[i]
+        if 'LTX' in image_path:
+            continue
         image_name=os.path.basename(image_path)
         slide=openslide.OpenSlide(image_path)
         print(f'Slide:{image_name}',flush=True)

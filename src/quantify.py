@@ -125,6 +125,7 @@ if __name__ == '__main__':
     thumb_path = os.path.join(args.save_path,'thumbs')
     os.makedirs(thumb_path,exist_ok=True)
     
+    print('thumbnail path',thumb_path)
     mask_path=args.mask_paths
     wsi_path=args.wsi_paths
     mask_paths=glob.glob(os.path.join(args.mask_paths,'*'))
