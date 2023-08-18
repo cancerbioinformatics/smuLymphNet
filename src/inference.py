@@ -1,6 +1,7 @@
 
 import os
 import glob
+import time
 import random
 import json
 import random
@@ -21,6 +22,7 @@ from network_gc import UNet_multi as msunet_gc
 from network_sinus import UNet_multi as msunet_sinus
 #from utils import *
 from stitching import stitch, Canvas
+from utilities import TissueDetect
 
 
 def patching(dims, step, tile_dim):
@@ -44,7 +46,7 @@ def get_transform(image):
 
 
 def predict(model, tile, thold, args, feature="gc"):
-
+    
     model.to(device)
     tile=(get_transform(tile).unsqueeze(0)).to(device)
     prediction=model(tile)
@@ -63,16 +65,23 @@ def predict(model, tile, thold, args, feature="gc"):
 
 
 def get_segmentation(slide,model_gc,model_sinus,args):
-    
-    levels={'40':2,'20':1,'10':0}
-    level=levels[args.base_level]
+
+    ds = args.base_mag / 10
+    ds_factors = [int(d) for d in slide.level_downsamples]
+    level = ds.index(ds)
+    print(f'Downsample: {ds} \nLevel: {level}')
+
     margin=int((args.tile_dim-args.stride)/2)
     wsi_dims=slide.level_dimensions[level] 
-    h, w = wsi_dims[0]/10, wsi_dims[1]/10
-    c=Canvas(w,h)
+
+    canvas_level = ds_factors.index(32)
+    canvas_dims = slide.level_dimensions[canvas_level]
+    args.downsample = int(wsi_dims[0] / canvas_dims[0])
+
+    c=Canvas(canvas_dims[1], canvas_dims[0])
     for x, y in patching(wsi_dims, args.stride, args.tile_dim):
         tile = slide.read_region((
-            y*2**level,x*2**level),
+            y*ds,x*ds),
             level,
             (args.tile_dim,args.tile_dim)
         )
@@ -92,14 +101,13 @@ def get_segmentation(slide,model_gc,model_sinus,args):
         else:
             print('No models loaded')
         
-        #print(c)
         stitch(
             c,
             probs, 
             int(x//args.downsample), 
             int(y//args.downsample), 
-            h,
-            w,
+            canvas_dims[0],#h,
+            canvas_dims[1],#w
             int(args.tile_dim/args.downsample),
             int(args.stride/args.downsample), 
             int(margin/args.downsample)
@@ -146,12 +154,12 @@ if __name__=="__main__":
         default=0.75,
         help='sinus model prediction threshold'
     )
-    ap.add_argument(
-        '-bm',
-        '--base_level',
-        default="40",
-        help='WSI base magnification level'
-    )
+    #ap.add_argument(
+        #'-bm',
+        #'--base_level',
+        #default="40",
+        #help='WSI base magnification level'
+    #)
     ap.add_argument(
         '-ts',
         '--tile_dim',
@@ -167,7 +175,7 @@ if __name__=="__main__":
     ap.add_argument(
         '-ds',
         '--downsample',
-        default=10,
+        default=8,
         help='downsample size'
     )
     args=ap.parse_args()
@@ -193,18 +201,36 @@ if __name__=="__main__":
     else:
         model_sinus=None
 
-    print('gc',model_gc)
-    print('sinus',model_sinus)
+    args.base_mag = slide.properties[
+        openslide.PROPERTY_NAME_OBJECTIVE_POWER]
+    print(f'Base mag: {args.base_mag}')
 
     image_paths=glob.glob(os.path.join(args.wsi_path,'*'))
     print('num images:{}'.format(len(image_paths)),flush=True)
-
+    durations = []
     for i in range(len(image_paths)):
         image_path=image_paths[i]
         image_name=os.path.basename(image_path)
         slide=openslide.OpenSlide(image_path)
         print(f'Slide:{image_name}',flush=True)
+        
+        start = time.time()
         pred_mask=get_segmentation(slide,model_gc,model_sinus,args)
-        cv2.imwrite(os.path.join(args.save_path,image_name+'.png'),pred_mask) 
+        done = time.time()
+        elapsed = done - start
+        durations.append(elapsed)
+        print(f'Prediction time: {elapsed}')
+
+        td = TissueDetect(slide)
+        contours = td._generate_tissue_contour()
+        image = td.tissue_thumbnail
+        
+        print('image shape',image.shape)
+        print('pred mask', pred_mask.shape)
+        #ln_post_processing(mask,contours,label)
+
+        cv2.imwrite(os.path.join(args.save_path,image_name+'_predmask.png'),pred_mask) 
+        cv2.imwrite(os.path.join(args.save_path,image_name+'_wsithumb.png'),image) 
 
     print(f'Finished segmenting {len(image_paths)} WSI')
+    print(f'Average prediction duration: {np.mean(durations)}')
