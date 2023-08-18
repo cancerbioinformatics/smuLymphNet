@@ -66,9 +66,9 @@ def predict(model, tile, thold, args, feature="gc"):
 
 def get_segmentation(slide,model_gc,model_sinus,args):
 
-    ds = args.base_mag / 10
+    ds = int(int(args.base_mag) / 10)
     ds_factors = [int(d) for d in slide.level_downsamples]
-    level = ds.index(ds)
+    level = ds_factors.index(ds)
     print(f'Downsample: {ds} \nLevel: {level}')
 
     margin=int((args.tile_dim-args.stride)/2)
@@ -79,6 +79,7 @@ def get_segmentation(slide,model_gc,model_sinus,args):
     args.downsample = int(wsi_dims[0] / canvas_dims[0])
 
     c=Canvas(canvas_dims[1], canvas_dims[0])
+    print('Segmenting...')
     for x, y in patching(wsi_dims, args.stride, args.tile_dim):
         tile = slide.read_region((
             y*ds,x*ds),
@@ -201,10 +202,6 @@ if __name__=="__main__":
     else:
         model_sinus=None
 
-    args.base_mag = slide.properties[
-        openslide.PROPERTY_NAME_OBJECTIVE_POWER]
-    print(f'Base mag: {args.base_mag}')
-
     image_paths=glob.glob(os.path.join(args.wsi_path,'*'))
     print('num images:{}'.format(len(image_paths)),flush=True)
     durations = []
@@ -214,6 +211,9 @@ if __name__=="__main__":
         slide=openslide.OpenSlide(image_path)
         print(f'Slide:{image_name}',flush=True)
         
+        args.base_mag = slide.properties[
+            openslide.PROPERTY_NAME_OBJECTIVE_POWER]
+        print(f'Base mag: {args.base_mag}')
         start = time.time()
         pred_mask=get_segmentation(slide,model_gc,model_sinus,args)
         done = time.time()
