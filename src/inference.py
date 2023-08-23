@@ -22,7 +22,7 @@ from network_gc import UNet_multi as msunet_gc
 from network_sinus import UNet_multi as msunet_sinus
 #from utils import *
 from stitching import stitch, Canvas
-from utilities import TissueDetect
+from utilities import TissueDetect, ln_post_processing
 
 
 def patching(dims, step, tile_dim):
@@ -74,18 +74,27 @@ def get_segmentation(slide,model_gc,model_sinus,args):
     margin=int((args.tile_dim-args.stride)/2)
     wsi_dims=slide.level_dimensions[level] 
 
-    canvas_level = ds_factors.index(32)
+    if 32 in ds_factors:
+        canvas_level = ds_factors.index(32)
+    else:
+        canvas_level = ds.factors.index(ds_factors[-1])
+
     canvas_dims = slide.level_dimensions[canvas_level]
     args.downsample = int(wsi_dims[0] / canvas_dims[0])
 
     c=Canvas(canvas_dims[1], canvas_dims[0])
     print('Segmenting...')
     for x, y in patching(wsi_dims, args.stride, args.tile_dim):
-        tile = slide.read_region((
-            y*ds,x*ds),
-            level,
-            (args.tile_dim,args.tile_dim)
-        )
+        try:
+            tile = slide.read_region((
+                y*ds,x*ds),
+                level,
+                (args.tile_dim,args.tile_dim)
+            )
+        except openslide.lowlevel.OpenSlideError as e:
+            print(e)
+            return None
+            
 
         if model_gc is not None:
             gc_thold=int(255*args.gc_threshold)
@@ -152,7 +161,7 @@ if __name__=="__main__":
     ap.add_argument(
         '-st',
         '--sinus_threshold',
-        default=0.75,
+        default=0.95,
         help='sinus model prediction threshold'
     )
     #ap.add_argument(
@@ -205,9 +214,10 @@ if __name__=="__main__":
     image_paths=glob.glob(os.path.join(args.wsi_path,'*'))
     print('num images:{}'.format(len(image_paths)),flush=True)
     durations = []
+    errors = []
     for i in range(len(image_paths)):
         image_path=image_paths[i]
-        if 'LTX' in image_path:
+        if '14.90610' not in image_path:
             continue
         image_name=os.path.basename(image_path)
         slide=openslide.OpenSlide(image_path)
@@ -218,21 +228,28 @@ if __name__=="__main__":
         print(f'Base mag: {args.base_mag}')
         start = time.time()
         pred_mask=get_segmentation(slide,model_gc,model_sinus,args)
+        if pred_mask is None:
+            print(f'{image_name} is corrupted')
+            errors.append(image_name)
+            continue
+
         done = time.time()
         elapsed = done - start
         durations.append(elapsed)
         print(f'Prediction time: {elapsed}')
-
+         
         td = TissueDetect(slide)
         contours = td._generate_tissue_contour()
         image = td.tissue_thumbnail
         
-        print('image shape',image.shape)
-        print('pred mask', pred_mask.shape)
-        #ln_post_processing(mask,contours,label)
+        mask_test = ln_post_processing(pred_mask, contours, labels=[128, 255])
 
         cv2.imwrite(os.path.join(args.save_path,image_name+'_predmask.png'),pred_mask) 
+        cv2.imwrite(os.path.join(args.save_path,image_name+'_filteredmask.png'),mask_test) 
         cv2.imwrite(os.path.join(args.save_path,image_name+'_wsithumb.png'),image) 
 
     print(f'Finished segmenting {len(image_paths)} WSI')
     print(f'Average prediction duration: {np.mean(durations)}')
+
+    err_df = pd.DataFrame({'errors': errors})
+    err_df.to_csv(os.path.join(args.save_path,image_name+'_errors.csv'))
