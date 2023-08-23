@@ -18,24 +18,28 @@ from skimage.morphology import square, closing, opening
 def within_contour(pt, contours, label=1):
     target=0
     for c in contours:
-        if cv2.pointPolygonTest(c, pt, False)==1: 
+        if cv2.pointPolygonTest(c, pt, False)==1:
             target=label
             break
-        break
     return target
 
 
-def ln_post_processing(seg_mask, contours, label):
+def ln_post_processing(seg_mask, contours, labels):
     
-    mask=seg_mask[:,:,0].copy()
-    mask[mask==label]=1
-    mask=cv2.resize(mask,tuple(reversed(slide_adj.shape[0:2])))
+    mask_filtered = np.zeros((seg_mask.shape))
+    for l in labels:
+        mask=seg_mask.copy()
+        mask[mask==l]=1
+        coords=list(zip(*np.where(mask==1)))
+        #mask=cv2.resize(mask,tuple(reversed(slide_adj.shape[0:2])))
+        
+        for i, j in coords:
+            new_label=within_contour((int(j),int(i)),contours,l)
+            mask[i,j]=new_label
 
-    for i, j in coords:
-        new_label=within_contour((int(j),int(i)),contours,1)
-        mask_temp[i,j]=new_label
-                                                    
-    return mask_temp 
+        mask_filtered[mask==l]=l
+                                 
+    return mask_filtered 
 
 
 class TissueDetect():
@@ -63,7 +67,7 @@ class TissueDetect():
     def tissue_thumbnail(self):
 
         ds = [int(d) for d in self.slide.level_downsamples]
-        level = ds.index(32)
+        level = ds.index(32) if 32 in ds else ds.index(int(ds[-1]))
         contours=self._generate_tissue_contour()
         image=self.slide.get_thumbnail(self.slide.level_dimensions[level])
         image=np.array(image.convert('RGB'))
@@ -112,7 +116,7 @@ class TissueDetect():
     def _generate_tissue_contour(self):
         
         ds = [int(d) for d in self.slide.level_downsamples]
-        level = ds.index(32)
+        level = ds.index(32) if 32 in ds else ds.index(int(ds[-1]))
         slide=self.slide.get_thumbnail(self.slide.level_dimensions[level])
         slide=np.array(slide.convert('RGB'))
         img_hsv=cv2.cvtColor(slide,cv2.COLOR_RGB2HSV)
@@ -134,5 +138,6 @@ class TissueDetect():
         
         self.contour_mask=blur
         contours,_=cv2.findContours(blur,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE)
+        contours=list(filter(lambda x: cv2.contourArea(x) > 5000, contours))
         self.contours=contours
         return self.contours
