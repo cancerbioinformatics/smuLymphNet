@@ -60,7 +60,7 @@ def predict(model, tile, thold, args, feature="gc"):
     label = 255 if feature=="gc" else 128
     probs[probs<=thold]=0
     probs[probs>thold]=label
-    probs[probs>255]=255
+    #probs[probs>255]=255
     return probs
 
 
@@ -77,7 +77,7 @@ def get_segmentation(slide,model_gc,model_sinus,args):
     if 32 in ds_factors:
         canvas_level = ds_factors.index(32)
     else:
-        canvas_level = ds.factors.index(ds_factors[-1])
+        canvas_level = ds_factors.index(ds_factors[-1])
 
     canvas_dims = slide.level_dimensions[canvas_level]
     args.downsample = int(wsi_dims[0] / canvas_dims[0])
@@ -95,7 +95,6 @@ def get_segmentation(slide,model_gc,model_sinus,args):
             print(e)
             return None
             
-
         if model_gc is not None:
             gc_thold=int(255*args.gc_threshold)
             gc_probs=predict(model_gc, tile, gc_thold, args, "gc")
@@ -103,7 +102,9 @@ def get_segmentation(slide,model_gc,model_sinus,args):
             sinus_thold=int(255*args.sinus_threshold)
             sinus_probs=predict(model_sinus, tile, sinus_thold, args, "sinus")
         if (model_gc is not None) and (model_sinus is not None):
-            probs=gc_probs+sinus_probs
+            probs=gc_probs.astype(np.float32)+sinus_probs.astype(np.float32)
+            if max(probs.ravel().tolist())>255:
+                probs[probs==383]=255
         elif (model_gc is None) and (model_sinus is not None):
             probs=sinus_probs
         elif (model_gc is not None) and (model_sinus is None):
@@ -161,7 +162,7 @@ if __name__=="__main__":
     ap.add_argument(
         '-st',
         '--sinus_threshold',
-        default=0.95,
+        default=0.9,
         help='sinus model prediction threshold'
     )
     #ap.add_argument(
@@ -211,14 +212,12 @@ if __name__=="__main__":
     else:
         model_sinus=None
 
-    image_paths=glob.glob(os.path.join(args.wsi_path,'*'))
+    image_paths=glob.glob(os.path.join(args.wsi_path,'*'))[1:20]
     print('num images:{}'.format(len(image_paths)),flush=True)
     durations = []
     errors = []
     for i in range(len(image_paths)):
         image_path=image_paths[i]
-        if '14.90610' not in image_path:
-            continue
         image_name=os.path.basename(image_path)
         slide=openslide.OpenSlide(image_path)
         print(f'Slide:{image_name}',flush=True)
@@ -252,4 +251,4 @@ if __name__=="__main__":
     print(f'Average prediction duration: {np.mean(durations)}')
 
     err_df = pd.DataFrame({'errors': errors})
-    err_df.to_csv(os.path.join(args.save_path,image_name+'_errors.csv'))
+    err_df.to_csv(os.path.join(args.save_path,'errors.csv'))
