@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 class Canvas():
     def __init__(self,x_dim,y_dim):
         canvas=np.zeros((int(x_dim+1),int(y_dim+1)))
-        self.canvas=canvas.astype(np.uint8)
+        self.canvas=canvas
     
     #@property
     #def canvas(self):
