@@ -52,16 +52,18 @@ def predict(model, tile, thold, args, feature="gc"):
     prediction=model(tile)
     probs=F.softmax(prediction,1)
                 
-    probs=(probs[0][1,:,:].cpu().detach().numpy())*255.0
-    probs=probs.astype(np.uint8)
+    probs=(probs[0][1,:,:].cpu().detach().numpy())
+    pred = probs.copy()*255
+    pred=pred.astype(np.uint8)
     new_dim=(args.tile_dim//args.downsample,args.tile_dim//args.downsample) 
+    pred=cv2.resize(pred, new_dim, interpolation = cv2.INTER_AREA) 
     probs=cv2.resize(probs, new_dim, interpolation = cv2.INTER_AREA)
-    
+
     label = 255 if feature=="gc" else 128
-    probs[probs<=thold]=0
-    probs[probs>thold]=label
+    pred[pred<=thold]=0
+    pred[pred>thold]=label
     #probs[probs>255]=255
-    return probs
+    return pred, probs
 
 
 def get_segmentation(slide,model_gc,model_sinus,args):
@@ -83,6 +85,9 @@ def get_segmentation(slide,model_gc,model_sinus,args):
     args.downsample = int(wsi_dims[0] / canvas_dims[0])
 
     c=Canvas(canvas_dims[1], canvas_dims[0])
+    if args.prob_maps:
+        c_sinus = Canvas(canvas_dims[1], canvas_dims[0])
+        c_gc = Canvas(canvas_dims[1], canvas_dims[0])
     print('Segmenting...')
     for x, y in patching(wsi_dims, args.stride, args.tile_dim):
         try:
@@ -96,25 +101,25 @@ def get_segmentation(slide,model_gc,model_sinus,args):
             return None
             
         if model_gc is not None:
-            gc_thold=int(255*args.gc_threshold)
-            gc_probs=predict(model_gc, tile, gc_thold, args, "gc")
+            gc_thold = int(255*args.gc_threshold)
+            gc_pred,gc_probs = predict(model_gc, tile, gc_thold, args, "gc")
         if model_sinus is not None:
-            sinus_thold=int(255*args.sinus_threshold)
-            sinus_probs=predict(model_sinus, tile, sinus_thold, args, "sinus")
+            sinus_thold = int(255*args.sinus_threshold)
+            sinus_pred,sinus_probs = predict(model_sinus, tile, sinus_thold, args, "sinus")
         if (model_gc is not None) and (model_sinus is not None):
-            probs=gc_probs.astype(np.float32)+sinus_probs.astype(np.float32)
-            if max(probs.ravel().tolist())>255:
-                probs[probs==383]=255
+            pred=gc_pred.astype(np.float32)+sinus_pred.astype(np.float32)
+            if max(pred.ravel().tolist())>255:
+                pred[pred==383]=255
         elif (model_gc is None) and (model_sinus is not None):
-            probs=sinus_probs
+            pred=sinus_pred
         elif (model_gc is not None) and (model_sinus is None):
-            probs=gc_probs
+            pred=gc_pred
         else:
             print('No models loaded')
         
         stitch(
             c,
-            probs, 
+            pred, 
             int(x//args.downsample), 
             int(y//args.downsample), 
             canvas_dims[0],#h,
@@ -123,8 +128,41 @@ def get_segmentation(slide,model_gc,model_sinus,args):
             int(args.stride/args.downsample), 
             int(margin/args.downsample)
         )
+        
+        if args.prob_maps:
+            stitch(
+                c_sinus,
+                sinus_probs, 
+                int(x//args.downsample), 
+                int(y//args.downsample), 
+                canvas_dims[0],#h,
+                canvas_dims[1],#w
+                int(args.tile_dim/args.downsample),
+                int(args.stride/args.downsample), 
+                int(margin/args.downsample)
+            )
+            
+            stitch(
+                c_gc,
+                gc_probs, 
+                int(x//args.downsample), 
+                int(y//args.downsample), 
+                canvas_dims[0],#h,
+                canvas_dims[1],#w
+                int(args.tile_dim/args.downsample),
+                int(args.stride/args.downsample), 
+                int(margin/args.downsample)
+            )
+    
+    if args.prob_maps:
+        gc_prob_map = c_gc.canvas
+        sinus_prob_map = c_sinus.canvas
+        print(np.unique(sinus_prob_map))    
+    else:
+        gc_prob_map = None
+        sinus_prob_map = None
 
-    return c.canvas  
+    return c.canvas.astype(np.uint8), gc_prob_map, sinus_prob_map
 
 
 if __name__=="__main__":
@@ -189,6 +227,12 @@ if __name__=="__main__":
         default=8,
         help='downsample size'
     )
+    ap.add_argument(
+        '-pm',
+        '--prob_maps',
+        default=True,
+        help='output of individual feature probability maps'
+    )
     args=ap.parse_args()
     print('Initiating.....',flush=True)
 
@@ -212,7 +256,7 @@ if __name__=="__main__":
     else:
         model_sinus=None
 
-    image_paths=glob.glob(os.path.join(args.wsi_path,'*'))[1:20]
+    image_paths=glob.glob(os.path.join(args.wsi_path,'*'))
     print('num images:{}'.format(len(image_paths)),flush=True)
     durations = []
     errors = []
@@ -221,12 +265,15 @@ if __name__=="__main__":
         image_name=os.path.basename(image_path)
         slide=openslide.OpenSlide(image_path)
         print(f'Slide:{image_name}',flush=True)
-        
+        print(f'Dims: {slide.dimensions}')   
         args.base_mag = slide.properties[
             openslide.PROPERTY_NAME_OBJECTIVE_POWER]
         print(f'Base mag: {args.base_mag}')
         start = time.time()
-        pred_mask=get_segmentation(slide,model_gc,model_sinus,args)
+        pred_mask, gc_probs, sinus_probs = get_segmentation(
+            slide,model_gc,model_sinus,args
+        )
+
         if pred_mask is None:
             print(f'{image_name} is corrupted')
             errors.append(image_name)
@@ -245,7 +292,9 @@ if __name__=="__main__":
 
         cv2.imwrite(os.path.join(args.save_path,image_name+'_predmask.png'),pred_mask) 
         cv2.imwrite(os.path.join(args.save_path,image_name+'_filteredmask.png'),mask_test) 
-        cv2.imwrite(os.path.join(args.save_path,image_name+'_wsithumb.png'),image) 
+        cv2.imwrite(os.path.join(args.save_path,image_name+'_wsithumb.png'),image)  
+        cv2.imwrite(os.path.join(args.save_path,image_name+'_sinusprobs.png'),sinus_probs) 
+        cv2.imwrite(os.path.join(args.save_path,image_name+'_gcprobs.png'),gc_probs) 
 
     print(f'Finished segmenting {len(image_paths)} WSI')
     print(f'Average prediction duration: {np.mean(durations)}')
